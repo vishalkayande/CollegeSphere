@@ -202,36 +202,45 @@ const AdminDashboard = () => {
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {allEvents.map((event) => (
-              <div key={event._id} className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition">
-                <div className="flex justify-between items-start mb-4">
-                  <div className="bg-blue-50 text-blue-600 px-3 py-1 rounded-full text-xs font-bold uppercase">
+              <div key={event._id} className="bg-white rounded-3xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-md transition flex flex-col">
+                <div className="h-40 overflow-hidden relative">
+                  <img 
+                    src={event.photo || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&q=80'} 
+                    alt={event.name} 
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute top-4 right-4 bg-white/90 backdrop-blur px-3 py-1 rounded-full text-[10px] font-bold text-blue-600 uppercase">
                     {event.level}
                   </div>
-                  <div className="flex items-center gap-1">
-                    <button 
-                      onClick={() => handleDownloadCSV(event._id, event.name)}
-                      className="p-2 text-gray-400 hover:text-blue-600 transition"
-                      title="Download Registrations CSV"
-                    >
-                      <Download className="w-5 h-5" />
-                    </button>
-                    <button 
-                      onClick={() => handleDeleteEvent(event._id)}
-                      className="p-2 text-gray-400 hover:text-red-500 transition"
-                      title="Delete Event"
-                    >
-                      <Trash2 className="w-5 h-5" />
-                    </button>
-                  </div>
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">{event.name}</h3>
-                <p className="text-gray-500 text-sm mb-4 line-clamp-2">{event.description}</p>
-                <div className="space-y-2 border-t pt-4">
-                  <div className="flex items-center gap-2 text-xs text-gray-400">
-                    <Building2 className="w-4 h-4" /> {event.college}
+                <div className="p-6 flex-1 flex flex-col">
+                  <div className="flex justify-between items-start mb-4">
+                    <h3 className="text-xl font-bold text-gray-900 line-clamp-1">{event.name}</h3>
+                    <div className="flex items-center gap-1">
+                      <button 
+                        onClick={() => handleDownloadCSV(event._id, event.name)}
+                        className="p-2 text-gray-400 hover:text-blue-600 transition"
+                        title="Download Registrations CSV"
+                      >
+                        <Download className="w-5 h-5" />
+                      </button>
+                      <button 
+                        onClick={() => handleDeleteEvent(event._id)}
+                        className="p-2 text-gray-400 hover:text-red-500 transition"
+                        title="Delete Event"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 text-xs text-gray-400">
-                    <Users className="w-4 h-4" /> Organizer: {event.organizer?.name}
+                  <p className="text-gray-500 text-sm mb-4 line-clamp-2">{event.description}</p>
+                  <div className="space-y-2 border-t pt-4 mt-auto">
+                    <div className="flex items-center gap-2 text-[10px] font-medium text-gray-400">
+                      <Building2 className="w-3.5 h-3.5 text-blue-400" /> {event.college}
+                    </div>
+                    <div className="flex items-center gap-2 text-[10px] font-medium text-gray-400">
+                      <Users className="w-3.5 h-3.5 text-yellow-400" /> {event.organizer?.name}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -293,10 +302,13 @@ const AdminDashboard = () => {
                       </div>
                       <div className="space-y-3">
                         {college.organizers.map(org => (
-                          <div key={org._id} className="bg-gray-50 p-4 rounded-2xl flex items-center justify-between">
+                          <div key={org._id} className="bg-gray-50 p-4 rounded-2xl flex items-center justify-between border border-transparent hover:border-yellow-200 transition">
                             <div>
                               <p className="font-bold text-gray-800 text-sm">{org.name}</p>
                               <p className="text-gray-400 text-xs">{org.email}</p>
+                              <p className="text-blue-500 text-[10px] font-bold mt-1 uppercase tracking-wider">
+                                {org.organizerDetails?.department || 'Organizer'}
+                              </p>
                             </div>
                             <div className="flex items-center gap-2">
                               {!org.isApproved && (
@@ -329,10 +341,13 @@ const AdminDashboard = () => {
                       </h3>
                       <div className="space-y-3">
                         {college.students.map(student => (
-                          <div key={student._id} className="bg-gray-50 p-4 rounded-2xl flex items-center justify-between">
+                          <div key={student._id} className="bg-gray-50 p-4 rounded-2xl flex items-center justify-between border border-transparent hover:border-blue-200 transition">
                             <div>
                               <p className="font-bold text-gray-800 text-sm">{student.name}</p>
                               <p className="text-gray-400 text-xs">{student.email}</p>
+                              <p className="text-blue-600 text-[10px] font-bold mt-1 uppercase tracking-wider">
+                                {student.studentDetails?.branch || 'General Student'}
+                              </p>
                             </div>
                             <button 
                               onClick={() => handleDeleteUser(student._id)}

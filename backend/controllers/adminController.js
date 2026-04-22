@@ -5,8 +5,8 @@ const Event = require('../models/eventModel');
 // @route   GET /api/admin/dashboard
 // @access  Private (Admin)
 const getDashboardData = async (req, res) => {
-  const students = await User.find({ role: 'student' });
-  const organizers = await User.find({ role: 'organizer' });
+  const students = await User.find({ role: 'student' }).select('-password');
+  const organizers = await User.find({ role: 'organizer' }).select('-password');
   const events = await Event.find({}).populate('organizer', 'name collegeName');
   
   // Group by college for hierarchical view

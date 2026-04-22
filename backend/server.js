@@ -25,14 +25,14 @@ app.use(cors({
   origin: true, // Allow all origins in development
   credentials: true
 }));
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: false }));
 
 // Request logger
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
   next();
 });
-app.use(express.urlencoded({ extended: false }));
 
 // Socket.io connection
 io.on('connection', (socket) => {

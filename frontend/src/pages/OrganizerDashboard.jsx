@@ -17,7 +17,26 @@ const OrganizerDashboard = () => {
     photo: '',
     date: '',
     time: '',
+    department: 'ALL',
   });
+  const [imagePreview, setImagePreview] = useState(null);
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        alert('File size too large. Please select an image under 5MB.');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData({ ...formData, photo: reader.result });
+        setImagePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const API_URL = 'http://localhost:5002'; // Define API URL for consistency
 
   const fetchAllEvents = async () => {
@@ -52,9 +71,12 @@ const OrganizerDashboard = () => {
         photo: '',
         date: '',
         time: '',
+        department: 'ALL',
       });
+      setImagePreview(null);
     } catch (err) {
       console.error(err);
+      alert(err.response?.data?.message || 'Failed to create event');
     }
   };
 
@@ -371,13 +393,42 @@ const OrganizerDashboard = () => {
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Event Image URL</label>
-                <input
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition"
-                  value={formData.photo}
-                  onChange={(e) => setFormData({ ...formData, photo: e.target.value })}
-                />
+              <div className="md:col-span-2">
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Event Image</label>
+                <div className="flex flex-col md:flex-row items-center gap-4 p-4 bg-gray-50 border-2 border-dashed border-gray-200 rounded-2xl transition hover:border-blue-400">
+                  {imagePreview ? (
+                    <div className="relative w-full md:w-32 h-32 rounded-xl overflow-hidden border border-gray-100 shadow-sm">
+                      <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          setImagePreview(null);
+                          setFormData({ ...formData, photo: '' });
+                        }}
+                        className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full shadow-lg hover:bg-red-600 transition"
+                      >
+                        <Plus className="w-3 h-3 rotate-45" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="w-full md:w-32 h-32 rounded-xl bg-gray-100 flex items-center justify-center text-gray-400">
+                      <Tag className="w-8 h-8" />
+                    </div>
+                  )}
+                  <div className="flex-1 text-center md:text-left">
+                    <p className="text-sm font-bold text-gray-700 mb-1">Upload directly from device</p>
+                    <p className="text-xs text-gray-400 mb-3">JPG, PNG or GIF. Max 5MB.</p>
+                    <label className="inline-block cursor-pointer bg-blue-50 text-blue-600 px-4 py-2 rounded-xl font-bold text-xs hover:bg-blue-600 hover:text-white transition">
+                      Select File
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleFileChange}
+                      />
+                    </label>
+                  </div>
+                </div>
               </div>
 
               <button type="submit" className="md:col-span-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-2xl shadow-lg shadow-blue-200 transition mt-4">
