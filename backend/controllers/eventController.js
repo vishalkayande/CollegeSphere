@@ -96,9 +96,29 @@ const getRegistrations = async (req, res) => {
   res.json(event.registrations);
 };
 
+// @desc    Delete event
+// @route   DELETE /api/events/:id
+// @access  Private (Organizer/Admin)
+const deleteEvent = async (req, res) => {
+  const event = await Event.findById(req.params.id);
+
+  if (!event) {
+    return res.status(404).json({ message: 'Event not found' });
+  }
+
+  // Check if authorized (only owner or admin can delete)
+  if (req.user.role !== 'admin' && event.organizer.toString() !== req.user._id.toString()) {
+    return res.status(403).json({ message: 'Not authorized' });
+  }
+
+  await event.deleteOne();
+  res.json({ message: 'Event removed' });
+};
+
 module.exports = {
   createEvent,
   getEvents,
   enrollEvent,
   getRegistrations,
+  deleteEvent,
 };

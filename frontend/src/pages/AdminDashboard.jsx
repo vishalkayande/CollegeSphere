@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import { Building2, Users, Calendar, ShieldAlert, Trash2, CheckCircle, XCircle, Trophy, ShieldCheck, LayoutGrid } from 'lucide-react';
+import { Building2, Users, Calendar, ShieldAlert, Trash2, CheckCircle, XCircle, Trophy, ShieldCheck, LayoutGrid, Download } from 'lucide-react';
 import Leaderboard from './Leaderboard';
 
 const AdminDashboard = () => {
@@ -10,13 +10,14 @@ const AdminDashboard = () => {
   const [allEvents, setAllEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(null); // null = welcome state with big logo
+  const API_URL = 'http://localhost:5002'; // Define API URL for consistency
 
   const fetchAdminData = async () => {
     try {
       const config = {
           headers: { Authorization: `Bearer ${user.token}` }
         };
-        const res = await axios.get('http://127.0.0.1:5002/api/admin/dashboard', config);
+        const res = await axios.get(`${API_URL}/api/admin/dashboard`, config);
         setData(res.data);
     } catch (err) {
       console.error(err);
@@ -27,7 +28,7 @@ const AdminDashboard = () => {
 
   const fetchAllEvents = async () => {
     try {
-      const res = await axios.get('http://127.0.0.1:5002/api/events');
+      const res = await axios.get(`${API_URL}/api/events`);
       setAllEvents(res.data);
     } catch (err) {
       console.error(err);
@@ -42,7 +43,7 @@ const AdminDashboard = () => {
   const handleApprove = async (id) => {
     try {
       const config = { headers: { Authorization: `Bearer ${user.token}` } };
-      await axios.put(`http://127.0.0.1:5002/api/admin/approve-organizer/${id}`, {}, config);
+      await axios.put(`${API_URL}/api/admin/approve-organizer/${id}`, {}, config);
       fetchAdminData();
     } catch (err) {
       alert('Failed to approve organizer');
@@ -53,7 +54,7 @@ const AdminDashboard = () => {
     if (!window.confirm('Are you sure you want to delete this user?')) return;
     try {
       const config = { headers: { Authorization: `Bearer ${user.token}` } };
-      await axios.delete(`http://127.0.0.1:5002/api/admin/user/${id}`, config);
+      await axios.delete(`${API_URL}/api/admin/user/${id}`, config);
       fetchAdminData();
     } catch (err) {
       alert('Failed to delete user');
@@ -64,11 +65,67 @@ const AdminDashboard = () => {
     if (!window.confirm('Are you sure you want to delete this event?')) return;
     try {
       const config = { headers: { Authorization: `Bearer ${user.token}` } };
-      await axios.delete(`http://127.0.0.1:5002/api/admin/event/${id}`, config);
+      await axios.delete(`${API_URL}/api/admin/event/${id}`, config);
       if (activeTab === 'admin') fetchAdminData();
       if (activeTab === 'events') fetchAllEvents();
     } catch (err) {
       alert('Failed to delete event');
+    }
+  };
+
+  const handleDownloadCSV = async (eventId, eventName) => {
+    try {
+      const config = {
+        headers: { Authorization: `Bearer ${user.token}` }
+      };
+      const res = await axios.get(`${API_URL}/api/events/${eventId}/registrations`, config);
+      const registrations = res.data;
+
+      if (registrations.length === 0) {
+        alert('No registrations found for this event');
+        return;
+      }
+
+      let csvContent = "Student Name,Email,Mobile No,Department,Year,Class,Roll No,Registration Date,Registration Time\n";
+      registrations.forEach(reg => {
+        const name = reg.student?.name || 'N/A';
+        const email = reg.email || reg.student?.email || 'N/A';
+        const mobile = reg.mobileNo || 'N/A';
+        const dept = reg.student?.studentDetails?.branch || 'N/A';
+        const year = reg.student?.studentDetails?.year || 'N/A';
+        const className = reg.student?.studentDetails?.class || 'N/A';
+        const rollNo = reg.student?.studentDetails?.rollNo || 'N/A';
+        
+        // Handle Registration Date and Time
+        const regDateObj = reg.registeredAt ? new Date(reg.registeredAt) : null;
+        const regDate = regDateObj ? regDateObj.toLocaleDateString() : 'N/A';
+        const regTime = regDateObj ? regDateObj.toLocaleTimeString() : 'N/A';
+        
+        const row = [
+          `"${name.replace(/"/g, '""')}"`,
+          `"${email.replace(/"/g, '""')}"`,
+          `"${mobile.replace(/"/g, '""')}"`,
+          `"${dept.replace(/"/g, '""')}"`,
+          `"${year.replace(/"/g, '""')}"`,
+          `"${className.replace(/"/g, '""')}"`,
+          `"${rollNo.replace(/"/g, '""')}"`,
+          `"${regDate}"`,
+          `"${regTime}"`
+        ].join(",");
+        csvContent += row + "\n";
+      });
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `${eventName.replace(/\s+/g, '_')}_registrations.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      console.error('Download Error:', err);
+      alert('Failed to download registrations');
     }
   };
 
@@ -150,12 +207,22 @@ const AdminDashboard = () => {
                   <div className="bg-blue-50 text-blue-600 px-3 py-1 rounded-full text-xs font-bold uppercase">
                     {event.level}
                   </div>
-                  <button 
-                    onClick={() => handleDeleteEvent(event._id)}
-                    className="p-2 text-gray-400 hover:text-red-500 transition"
-                  >
-                    <Trash2 className="w-5 h-5" />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button 
+                      onClick={() => handleDownloadCSV(event._id, event.name)}
+                      className="p-2 text-gray-400 hover:text-blue-600 transition"
+                      title="Download Registrations CSV"
+                    >
+                      <Download className="w-5 h-5" />
+                    </button>
+                    <button 
+                      onClick={() => handleDeleteEvent(event._id)}
+                      className="p-2 text-gray-400 hover:text-red-500 transition"
+                      title="Delete Event"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+                  </div>
                 </div>
                 <h3 className="text-xl font-bold text-gray-900 mb-2">{event.name}</h3>
                 <p className="text-gray-500 text-sm mb-4 line-clamp-2">{event.description}</p>

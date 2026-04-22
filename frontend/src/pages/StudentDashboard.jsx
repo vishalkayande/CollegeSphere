@@ -13,6 +13,7 @@ const StudentDashboard = () => {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
+  const API_URL = 'http://localhost:5002';
 
   useEffect(() => {
     // Only show modal if studentDetails are completely missing or branch is not set
@@ -23,19 +24,53 @@ const StudentDashboard = () => {
     }
   }, [user]);
 
+  const fetchEvents = async () => {
+    try {
+      setLoading(true);
+      const res = await axios.get(`${API_URL}/api/events?level=${activeTab}&college=${user.collegeName}`);
+      setEvents(res.data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchEvents = async () => {
-      try {
-        const res = await axios.get(`http://127.0.0.1:5002/api/events?level=${activeTab}`);
-        setEvents(res.data);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchEvents();
-  }, [activeTab]);
+    if (user?.collegeName) {
+      fetchEvents();
+    }
+  }, [activeTab, user]);
+
+  const handleRegister = async (eventId) => {
+    try {
+      const config = {
+        headers: { Authorization: `Bearer ${user.token}` }
+      };
+      const registrationData = {
+        mobileNo: user.studentDetails?.mobileNo || '',
+        email: user.email
+      };
+      
+      await axios.post(`${API_URL}/api/events/${eventId}/enroll`, registrationData, config);
+      alert('Successfully registered for the event!');
+      fetchEvents(); // Refresh events to show "Registered" status
+    } catch (err) {
+      console.error('Registration Error:', err);
+      alert(err.response?.data?.message || 'Failed to register for event');
+    }
+  };
+
+  const isRegistered = (event) => {
+    return event.registrations?.some(reg => reg.student === user._id || reg.student?._id === user._id);
+  };
+
+  const isEligible = (event) => {
+    if (event.level === 'department') {
+      return event.department === 'ALL' || event.department === user?.studentDetails?.branch;
+    }
+    return true; // Institute and Club levels are open to all students in the college
+  };
 
   const tabs = [
     { id: 'institute', label: 'Institute Level', icon: Building2 },
@@ -144,16 +179,19 @@ const StudentDashboard = () => {
                 </div>
 
                 <button
-                  disabled={event.level === 'department' && event.department !== user?.studentDetails?.branch}
+                  onClick={() => handleRegister(event._id)}
+                  disabled={!isEligible(event) || isRegistered(event)}
                   className={`mt-auto w-full flex items-center justify-center gap-2 font-bold py-4 rounded-2xl transition-all duration-200 group/btn ${
-                    event.level === 'department' && event.department !== user?.studentDetails?.branch
+                    !isEligible(event) || isRegistered(event)
                       ? 'bg-gray-100 text-gray-400 cursor-not-allowed grayscale'
                       : 'bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white'
                   }`}
                 >
-                  {event.level === 'department' && event.department !== user?.studentDetails?.branch
-                    ? 'Only for ' + event.department
-                    : 'Register Now'}
+                  {isRegistered(event) 
+                    ? 'Registered ✓' 
+                    : (!isEligible(event)
+                        ? 'Only for ' + event.department
+                        : 'Register Now')}
                   <ChevronRight className="w-4 h-4 group-hover/btn:translate-x-1 transition" />
                 </button>
               </div>
@@ -185,7 +223,7 @@ const StudentDashboard = () => {
                   type="button"
                   onClick={async () => {
                     try {
-                      const res = await axios.get('http://127.0.0.1:5002/api/ping');
+                      const res = await axios.get(`${API_URL}/api/ping`);
                       alert('Connection to backend: SUCCESS! ' + res.data.timestamp);
                     } catch (err) {
                       alert('Connection to backend: FAILED! ' + err.message);
@@ -229,7 +267,7 @@ const StudentDashboard = () => {
                     headers: { Authorization: `Bearer ${user.token}` }
                   };
                   console.log('Request Config:', config);
-                  const response = await axios.put('http://127.0.0.1:5002/api/users/profile', details, config);
+                  const response = await axios.put(`${API_URL}/api/users/profile`, details, config);
                   console.log('Update Success:', response.data);
                 updateUser(response.data);
                 // setShowProfileModal is now reactive to user state

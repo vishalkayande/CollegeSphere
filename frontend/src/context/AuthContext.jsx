@@ -5,6 +5,8 @@ const AuthContext = createContext();
 
 export const useAuth = () => useContext(AuthContext);
 
+const API_URL = 'http://localhost:5002'; // Use localhost instead of 127.0.0.1 for consistency
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -18,7 +20,7 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const signup = async (userData) => {
-    const response = await axios.post('http://127.0.0.1:5002/api/users/signup', userData);
+    const response = await axios.post(`${API_URL}/api/users/signup`, userData);
     console.log('Signup Response:', response.data);
     if (response.data && response.data.token) {
       localStorage.setItem('user', JSON.stringify(response.data));
@@ -28,7 +30,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const login = async (credentials) => {
-    const response = await axios.post('http://127.0.0.1:5002/api/users/login', credentials);
+    const response = await axios.post(`${API_URL}/api/users/login`, credentials);
     console.log('Login Response:', response.data);
     if (response.data && response.data.token) {
       localStorage.setItem('user', JSON.stringify(response.data));

@@ -18,16 +18,18 @@ const OrganizerDashboard = () => {
     date: '',
     time: '',
   });
+  const API_URL = 'http://localhost:5002'; // Define API URL for consistency
+
+  const fetchAllEvents = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/api/events?college=${user.collegeName}`);
+      setEvents(res.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   useEffect(() => {
-    const fetchAllEvents = async () => {
-      try {
-        const res = await axios.get(`http://127.0.0.1:5002/api/events?college=${user.collegeName}`);
-        setEvents(res.data);
-      } catch (err) {
-        console.error(err);
-      }
-    };
     fetchAllEvents();
   }, [user]);
 
@@ -35,13 +37,100 @@ const OrganizerDashboard = () => {
     e.preventDefault();
     try {
       const config = {
-          headers: { Authorization: `Bearer ${user.token}` }
-        };
-        await axios.post('http://127.0.0.1:5002/api/events', formData, config);
-        setShowModal(false);
-      // Refresh events...
+        headers: { Authorization: `Bearer ${user.token}` }
+      };
+      await axios.post(`${API_URL}/api/events`, formData, config);
+      setShowModal(false);
+      fetchAllEvents(); // Refresh events list
+      setFormData({ // Reset form data
+        name: '',
+        level: 'institute',
+        category: '',
+        description: '',
+        url: '',
+        upiId: '',
+        photo: '',
+        date: '',
+        time: '',
+      });
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const handleDelete = async (eventId) => {
+    if (window.confirm('Are you sure you want to delete this event?')) {
+      try {
+        const config = {
+          headers: { Authorization: `Bearer ${user.token}` }
+        };
+        await axios.delete(`${API_URL}/api/events/${eventId}`, config);
+        fetchAllEvents(); // Refresh after delete
+      } catch (err) {
+        console.error('Delete Error:', err);
+        alert(err.response?.data?.message || 'Failed to delete event');
+      }
+    }
+  };
+
+  const handleDownloadCSV = async (eventId, eventName) => {
+    try {
+      const config = {
+        headers: { Authorization: `Bearer ${user.token}` }
+      };
+      const res = await axios.get(`${API_URL}/api/events/${eventId}/registrations`, config);
+      const registrations = res.data;
+
+      if (registrations.length === 0) {
+        alert('No registrations found for this event');
+        return;
+      }
+
+      // Create CSV header
+      let csvContent = "Student Name,Email,Mobile No,Department,Year,Class,Roll No,Registration Date,Registration Time\n";
+
+      // Add student data
+      registrations.forEach(reg => {
+        const name = reg.student?.name || 'N/A';
+        const email = reg.email || reg.student?.email || 'N/A';
+        const mobile = reg.mobileNo || 'N/A';
+        const dept = reg.student?.studentDetails?.branch || 'N/A';
+        const year = reg.student?.studentDetails?.year || 'N/A';
+        const className = reg.student?.studentDetails?.class || 'N/A';
+        const rollNo = reg.student?.studentDetails?.rollNo || 'N/A';
+        
+        // Handle Registration Date and Time
+        const regDateObj = reg.registeredAt ? new Date(reg.registeredAt) : null;
+        const regDate = regDateObj ? regDateObj.toLocaleDateString() : 'N/A';
+        const regTime = regDateObj ? regDateObj.toLocaleTimeString() : 'N/A';
+        
+        // Escape quotes and commas
+        const row = [
+          `"${name.replace(/"/g, '""')}"`,
+          `"${email.replace(/"/g, '""')}"`,
+          `"${mobile.replace(/"/g, '""')}"`,
+          `"${dept.replace(/"/g, '""')}"`,
+          `"${year.replace(/"/g, '""')}"`,
+          `"${className.replace(/"/g, '""')}"`,
+          `"${rollNo.replace(/"/g, '""')}"`,
+          `"${regDate}"`,
+          `"${regTime}"`
+        ].join(",");
+        csvContent += row + "\n";
+      });
+
+      // Download file
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `${eventName.replace(/\s+/g, '_')}_registrations.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      console.error('Download Error:', err);
+      alert(err.response?.data?.message || 'Failed to download registrations');
     }
   };
 
@@ -148,12 +237,20 @@ const OrganizerDashboard = () => {
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
                       {event.organizer?._id === user?._id && (
-                        <button className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition" title="View Registrations">
+                        <button 
+                          onClick={() => handleDownloadCSV(event._id, event.name)}
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition" 
+                          title="Download Registrations CSV"
+                        >
                           <Download className="w-5 h-5" />
                         </button>
                       )}
                       {event.organizer?._id === user?._id && (
-                        <button className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition" title="Delete Event">
+                        <button 
+                          onClick={() => handleDelete(event._id)}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition" 
+                          title="Delete Event"
+                        >
                           <Trash2 className="w-5 h-5" />
                         </button>
                       )}
