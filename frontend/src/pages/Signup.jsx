@@ -36,8 +36,9 @@ const Signup = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-600 to-blue-800 p-4">
-      <div className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-lg">
+    <div className="min-h-screen flex items-center justify-center bg-cover bg-center p-4 relative" style={{ backgroundImage: 'url("/background.jpg")' }}>
+      <div className="absolute inset-0 bg-black/50"></div>
+      <div className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-lg relative z-10">
         <div className="flex flex-col items-center mb-8 text-center">
           <img src="/logo.png" alt="CollegeSphere Logo" className="h-28 w-auto mb-2 drop-shadow-lg" />
           <p className="text-gray-500 font-medium">An academic Event management platform</p>
