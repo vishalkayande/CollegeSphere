@@ -169,19 +169,29 @@ const StudentDashboard = () => {
                 </div>
                 
                 <div className="space-y-3 mb-4">
-                  <div className="flex items-center text-gray-500 gap-2 text-sm">
-                    <Calendar className="w-4 h-4 text-blue-500" />
+                  <div className={`flex items-center gap-2 text-sm ${isExpired(event) ? 'text-red-500 font-bold' : 'text-gray-500'}`}>
+                    <Calendar className={`w-4 h-4 ${isExpired(event) ? 'text-red-500' : 'text-blue-500'}`} />
                     <span className="font-medium">Registration Deadline:</span>
                     <span>{new Date(event.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
                   </div>
-                  <div className="flex items-center text-gray-500 gap-2 text-sm">
-                    <Clock className="w-4 h-4 text-yellow-500" />
+                  <div className={`flex items-center gap-2 text-sm ${isExpired(event) ? 'text-red-500 font-bold' : 'text-gray-500'}`}>
+                    <Clock className={`w-4 h-4 ${isExpired(event) ? 'text-red-500' : 'text-yellow-500'}`} />
                     <span>{event.time}</span>
+                    {isExpired(event) && <span className="ml-1 text-[10px] uppercase tracking-tighter">(Expired)</span>}
                   </div>
                   <div className="flex items-center text-gray-500 gap-2 text-sm">
                     <MapPin className="w-4 h-4 text-red-500" />
                     <span className="truncate">{event.college}</span>
                   </div>
+                  {event.registrationLimit > 0 && (
+                    <div className="flex items-center text-gray-500 gap-2 text-sm">
+                      <Users className={`w-4 h-4 ${event.registrations.length >= event.registrationLimit ? 'text-red-500' : 'text-green-500'}`} />
+                      <span className="font-medium">Capacity:</span>
+                      <span className={event.registrations.length >= event.registrationLimit ? 'text-red-500 font-bold' : ''}>
+                        {event.registrations.length} / {event.registrationLimit}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {/* UPI Details - Only shown for registered students */}
@@ -207,9 +217,9 @@ const StudentDashboard = () => {
 
                 <button
                   onClick={() => handleRegister(event._id)}
-                  disabled={!isEligible(event) || isRegistered(event) || isExpired(event)}
+                  disabled={!isEligible(event) || isRegistered(event) || isExpired(event) || event.isPaused || (event.registrationLimit > 0 && event.registrations.length >= event.registrationLimit)}
                   className={`mt-auto w-full flex items-center justify-center gap-2 font-bold py-4 rounded-2xl transition-all duration-200 group/btn ${
-                    !isEligible(event) || isRegistered(event) || isExpired(event)
+                    !isEligible(event) || isRegistered(event) || isExpired(event) || event.isPaused || (event.registrationLimit > 0 && event.registrations.length >= event.registrationLimit)
                       ? 'bg-gray-100 text-gray-400 cursor-not-allowed grayscale'
                       : 'bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white'
                   }`}
@@ -217,10 +227,14 @@ const StudentDashboard = () => {
                   {isRegistered(event) 
                     ? 'Registered ✓' 
                     : (isExpired(event)
-                        ? 'Expired ✕'
-                        : (!isEligible(event)
-                            ? 'Only for ' + event.department
-                            : 'Register Now'))}
+                        ? 'Event Registrations Expired'
+                        : (event.isPaused
+                            ? 'Registration Paused'
+                            : (event.registrationLimit > 0 && event.registrations.length >= event.registrationLimit
+                                ? 'Registrations Full'
+                                : (!isEligible(event)
+                                    ? 'Only for ' + event.department
+                                    : 'Register Now'))))}
                   <ChevronRight className="w-4 h-4 group-hover/btn:translate-x-1 transition" />
                 </button>
               </div>

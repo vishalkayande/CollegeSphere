@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import { Plus, Users, Download, Trash2, ExternalLink, Calendar as CalendarIcon, Clock, Tag } from 'lucide-react';
+import { Plus, Users, Download, Trash2, ExternalLink, Calendar as CalendarIcon, Clock, Tag, Pause, Play } from 'lucide-react';
 
 const OrganizerDashboard = () => {
   const { user } = useAuth();
@@ -18,8 +18,14 @@ const OrganizerDashboard = () => {
     date: '',
     time: '',
     department: 'ALL',
+    registrationLimit: 0,
   });
   const [imagePreview, setImagePreview] = useState(null);
+
+  const isExpired = (event) => {
+    const deadline = new Date(`${event.date.split('T')[0]}T${event.time}`);
+    return new Date() > deadline;
+  };
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
@@ -42,7 +48,11 @@ const OrganizerDashboard = () => {
   const fetchAllEvents = async () => {
     try {
       const res = await axios.get(`${API_URL}/api/events?college=${user.collegeName}`);
-      setEvents(res.data);
+      // Filter events to only show those organized by current user
+      const myEvents = res.data.filter(event => 
+        event.organizer === user._id || event.organizer?._id === user._id
+      );
+      setEvents(myEvents);
     } catch (err) {
       console.error(err);
     }
@@ -72,6 +82,7 @@ const OrganizerDashboard = () => {
         date: '',
         time: '',
         department: 'ALL',
+        registrationLimit: 0,
       });
       setImagePreview(null);
     } catch (err) {
@@ -92,6 +103,19 @@ const OrganizerDashboard = () => {
         console.error('Delete Error:', err);
         alert(err.response?.data?.message || 'Failed to delete event');
       }
+    }
+  };
+
+  const handleTogglePause = async (eventId) => {
+    try {
+      const config = {
+        headers: { Authorization: `Bearer ${user.token}` }
+      };
+      await axios.put(`${API_URL}/api/events/${eventId}/pause`, {}, config);
+      fetchAllEvents(); // Refresh list
+    } catch (err) {
+      console.error('Toggle Pause Error:', err);
+      alert(err.response?.data?.message || 'Failed to update event status');
     }
   };
 
@@ -185,20 +209,22 @@ const OrganizerDashboard = () => {
           <h2 className="text-3xl font-bold text-gray-900">{events.length}</h2>
         </div>
         <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
-          <div className="bg-yellow-50 w-12 h-12 rounded-2xl flex items-center justify-center mb-4 text-yellow-600">
-            <Users className="w-6 h-6" />
+          <div className="bg-green-50 w-12 h-12 rounded-2xl flex items-center justify-center mb-4 text-green-600">
+            <CalendarIcon className="w-6 h-6" />
           </div>
-          <p className="text-gray-500 text-sm font-medium">Total Registrations</p>
+          <p className="text-gray-500 text-sm font-medium">Active Events</p>
           <h2 className="text-3xl font-bold text-gray-900">
-            {events.reduce((acc, curr) => acc + curr.registrations.length, 0)}
+            {events.filter(e => !isExpired(e)).length}
           </h2>
         </div>
         <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
           <div className="bg-red-50 w-12 h-12 rounded-2xl flex items-center justify-center mb-4 text-red-600">
-            <Download className="w-6 h-6" />
+            <CalendarIcon className="w-6 h-6" />
           </div>
-          <p className="text-gray-500 text-sm font-medium">Reports Exported</p>
-          <h2 className="text-3xl font-bold text-gray-900">0</h2>
+          <p className="text-gray-500 text-sm font-medium">Expired Events</p>
+          <h2 className="text-3xl font-bold text-gray-900">
+            {events.filter(e => isExpired(e)).length}
+          </h2>
         </div>
       </div>
 
@@ -231,13 +257,14 @@ const OrganizerDashboard = () => {
                     <div className="text-[10px] text-gray-400">{event.organizer?.email}</div>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <CalendarIcon className="w-4 h-4 text-blue-500" />
-                      {new Date(event.date).toLocaleDateString()}
+                    <div className={`flex items-center gap-2 text-sm ${isExpired(event) ? 'text-red-500 font-black animate-pulse' : 'text-gray-600 font-medium'}`}>
+                      <CalendarIcon className={`w-4 h-4 ${isExpired(event) ? 'text-red-500' : 'text-blue-500'}`} />
+                      {new Date(event.date).toLocaleDateString('en-GB')}
                     </div>
-                    <div className="flex items-center gap-2 text-sm text-gray-600 mt-1">
-                      <Clock className="w-4 h-4 text-yellow-500" />
+                    <div className={`flex items-center gap-2 text-sm mt-1 ${isExpired(event) ? 'text-red-500 font-black' : 'text-gray-600 font-medium'}`}>
+                      <Clock className={`w-4 h-4 ${isExpired(event) ? 'text-red-500' : 'text-yellow-500'}`} />
                       {event.time}
+                      {isExpired(event) && <span className="ml-1 text-[10px] bg-red-100 px-1.5 py-0.5 rounded text-red-600 uppercase tracking-tighter">Expired</span>}
                     </div>
                   </td>
                   <td className="px-6 py-4">
@@ -251,30 +278,70 @@ const OrganizerDashboard = () => {
                     )}
                   </td>
                   <td className="px-6 py-4">
-                    <div className="flex items-center gap-2 font-bold text-gray-700">
-                      <Users className="w-4 h-4 text-gray-400" />
-                      {event.registrations.length}
+                    <div className="flex flex-col gap-1">
+                      <div className={`flex items-center gap-2 font-black ${
+                        event.registrationLimit > 0 && event.registrations.length >= event.registrationLimit 
+                          ? 'text-red-600' 
+                          : 'text-gray-700'
+                      }`}>
+                        <Users className={`w-4 h-4 ${
+                          event.registrationLimit > 0 && event.registrations.length >= event.registrationLimit 
+                            ? 'text-red-500' 
+                            : 'text-gray-400'
+                        }`} />
+                        <span className="text-sm">
+                          {event.registrations.length} / {event.registrationLimit > 0 ? event.registrationLimit : '∞'}
+                        </span>
+                      </div>
+                      <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                        <div 
+                          className={`h-full transition-all duration-500 ${
+                            event.registrationLimit > 0 && (event.registrations.length / event.registrationLimit) >= 1 ? 'bg-red-500' : 'bg-blue-500'
+                          }`}
+                          style={{ 
+                            width: event.registrationLimit > 0 
+                              ? `${Math.min((event.registrations.length / event.registrationLimit) * 100, 100)}%` 
+                              : '0%' 
+                          }}
+                        ></div>
+                      </div>
+                      {event.registrationLimit > 0 && event.registrations.length >= event.registrationLimit && (
+                        <span className="text-[9px] text-red-500 font-bold uppercase tracking-tighter">Full Capacity</span>
+                      )}
                     </div>
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
                       {event.organizer?._id === user?._id && (
-                        <button 
-                          onClick={() => handleDownloadCSV(event._id, event.name)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition" 
-                          title="Download Registrations CSV"
-                        >
-                          <Download className="w-5 h-5" />
-                        </button>
-                      )}
-                      {event.organizer?._id === user?._id && (
-                        <button 
-                          onClick={() => handleDelete(event._id)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition" 
-                          title="Delete Event"
-                        >
-                          <Trash2 className="w-5 h-5" />
-                        </button>
+                        <div className="flex items-center gap-1">
+                          {!isExpired(event) && (
+                            <button 
+                              onClick={() => handleTogglePause(event._id)}
+                              className={`p-2 rounded-lg transition ${
+                                event.isPaused 
+                                  ? 'text-green-600 bg-green-50 hover:bg-green-100' 
+                                  : 'text-amber-600 bg-amber-50 hover:bg-amber-100'
+                              }`}
+                              title={event.isPaused ? "Resume Registrations" : "Pause Registrations"}
+                            >
+                              {event.isPaused ? <Play className="w-5 h-5" /> : <Pause className="w-5 h-5" />}
+                            </button>
+                          )}
+                          <button 
+                            onClick={() => handleDownloadCSV(event._id, event.name)}
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition" 
+                            title="Download Registrations CSV"
+                          >
+                            <Download className="w-5 h-5" />
+                          </button>
+                          <button 
+                            onClick={() => handleDelete(event._id)}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition" 
+                            title="Delete Event"
+                          >
+                            <Trash2 className="w-5 h-5" />
+                          </button>
+                        </div>
                       )}
                     </div>
                   </td>
@@ -343,11 +410,31 @@ const OrganizerDashboard = () => {
 
               <div>
                 <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Category</label>
-                <input
-                  placeholder="e.g. Technical"
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition"
+                <select
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition font-medium"
                   value={formData.category}
                   onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                  required
+                >
+                  <option value="">Select Category</option>
+                  <option value="Technical">Technical (Coding, RoboRace, etc)</option>
+                  <option value="Cultural">Cultural (Dance, Music, Drama)</option>
+                  <option value="Sports">Sports (Cricket, Football, Chess)</option>
+                  <option value="Workshop">Workshop / Seminar</option>
+                  <option value="Exhibition">Project Exhibition</option>
+                  <option value="Gaming">E-Sports / Gaming</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Registration Limit (0 for no limit)</label>
+                <input
+                  type="number"
+                  min="0"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition"
+                  value={formData.registrationLimit}
+                  onChange={(e) => setFormData({ ...formData, registrationLimit: parseInt(e.target.value) || 0 })}
                 />
               </div>
 

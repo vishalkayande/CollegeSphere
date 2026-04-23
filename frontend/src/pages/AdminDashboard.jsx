@@ -10,7 +10,15 @@ const AdminDashboard = () => {
   const [allEvents, setAllEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(null); // null = welcome state with big logo
+  const [orgFilter, setOrgFilter] = useState('ALL');
+  const [studentFilter, setStudentFilter] = useState('ALL');
+  const [eventFilter, setEventFilter] = useState('ALL');
   const API_URL = 'http://localhost:5002'; // Define API URL for consistency
+
+  const isExpired = (event) => {
+    const deadline = new Date(`${event.date.split('T')[0]}T${event.time}`);
+    return new Date() > deadline;
+  };
 
   const fetchAdminData = async () => {
     try {
@@ -179,14 +187,6 @@ const AdminDashboard = () => {
             Your centralized command center for academic excellence. 
             Select a module from above to manage events, track rankings, or access the admin console.
           </p>
-          <div className="mt-12 flex gap-4">
-            <div className="px-6 py-3 bg-blue-50 text-blue-600 rounded-2xl font-bold text-sm border border-blue-100">
-              System Admin
-            </div>
-            <div className="px-6 py-3 bg-gray-50 text-gray-500 rounded-2xl font-bold text-sm border border-gray-100">
-              v1.0.4
-            </div>
-          </div>
         </div>
       )}
 
@@ -261,7 +261,7 @@ const AdminDashboard = () => {
             <img src="/logo.png" alt="CollegeSphere Logo" className="h-16 w-auto drop-shadow-sm" />
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Admin Command Center</h1>
-              <p className="text-gray-500 mt-1">Global management of all colleges, organizers, and students.</p>
+              <p className="text-gray-500 mt-1 font-medium italic">Global management of organizers and students.</p>
             </div>
           </div>
 
@@ -273,121 +273,192 @@ const AdminDashboard = () => {
             </div>
           ) : data.length > 0 ? (
             <div className="space-y-12">
-              {data.map((college) => (
-                <div key={college.college} className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden">
-                  {/* College Header */}
-                  <div className="bg-blue-600 px-8 py-6 flex items-center justify-between text-white">
-                    <div className="flex items-center gap-4">
-                      <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-sm">
-                        <Building2 className="w-8 h-8" />
-                      </div>
-                      <div>
-                        <h2 className="text-2xl font-bold">{college.college}</h2>
-                        <p className="text-blue-100 text-sm">{college.students.length} Students • {college.organizers.length} Organizers</p>
-                      </div>
-                    </div>
-                    <div className="bg-white/10 px-4 py-2 rounded-xl text-sm font-medium backdrop-blur-sm border border-white/10">
-                      {college.events.length} Active Events
-                    </div>
-                  </div>
+              {data.map((college) => {
+                const orgBranches = ['ALL', ...new Set(college.organizers.map(o => o.organizerDetails?.department).filter(Boolean))];
+                const studentBranches = ['ALL', ...new Set(college.students.map(s => s.studentDetails?.branch).filter(Boolean))];
+                const eventStatuses = ['ALL', 'LIVE', 'EXPIRED'];
 
-                  <div className="p-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    {/* Organizers List */}
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between mb-4">
-                        <h3 className="font-bold text-gray-900 flex items-center gap-2">
-                          <ShieldAlert className="w-5 h-5 text-yellow-500" />
-                          Organizers
-                        </h3>
+                return (
+                  <div key={college.college} className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden">
+                    {/* College Header */}
+                    <div className="bg-blue-600 px-8 py-6 flex items-center justify-between text-white">
+                      <div className="flex items-center gap-4">
+                        <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-sm">
+                          <Building2 className="w-8 h-8" />
+                        </div>
+                        <div>
+                          <h2 className="text-2xl font-bold">{college.college}</h2>
+                          <p className="text-blue-100 text-sm">{college.students.length} Students • {college.organizers.length} Organizers</p>
+                        </div>
                       </div>
-                      <div className="space-y-3">
-                        {college.organizers.map(org => (
-                          <div key={org._id} className="bg-gray-50 p-4 rounded-2xl flex items-center justify-between border border-transparent hover:border-yellow-200 transition">
-                            <div>
-                              <p className="font-bold text-gray-800 text-sm">{org.name}</p>
-                              <p className="text-gray-400 text-xs">{org.email}</p>
-                              <p className="text-blue-500 text-[10px] font-bold mt-1 uppercase tracking-wider">
-                                {org.organizerDetails?.department || 'Organizer'}
-                              </p>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              {!org.isApproved && (
+                      <div className="bg-white/10 px-4 py-2 rounded-xl text-sm font-medium backdrop-blur-sm border border-white/10">
+                        {college.events.length} Active Events
+                      </div>
+                    </div>
+
+                    <div className="p-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
+                      {/* Organizers List */}
+                      <div className="space-y-4">
+                        <div className="flex flex-col gap-4 mb-4">
+                          <h3 className="font-black text-gray-900 flex items-center gap-2 text-lg uppercase tracking-tight">
+                            <ShieldAlert className="w-5 h-5 text-yellow-500" />
+                            Organizers
+                          </h3>
+                          <div className="flex flex-wrap gap-2">
+                            {orgBranches.map(branch => (
+                              <button
+                                key={branch}
+                                onClick={() => setOrgFilter(branch)}
+                                className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${
+                                  orgFilter === branch 
+                                    ? 'bg-yellow-500 text-white shadow-md shadow-yellow-100' 
+                                    : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
+                                }`}
+                              >
+                                {branch}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                          {college.organizers
+                            .filter(org => orgFilter === 'ALL' || org.organizerDetails?.department === orgFilter)
+                            .map(org => (
+                            <div key={org._id} className="bg-gray-50 p-4 rounded-2xl flex items-center justify-between border border-transparent hover:border-yellow-200 transition">
+                              <div>
+                                <p className="font-bold text-gray-800 text-sm">{org.name}</p>
+                                <p className="text-gray-400 text-xs">{org.email}</p>
+                                <p className="text-blue-500 text-[10px] font-bold mt-1 uppercase tracking-wider">
+                                  {org.organizerDetails?.department || 'Organizer'}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {!org.isApproved && (
+                                  <button 
+                                    onClick={() => handleApprove(org._id)}
+                                    className="p-1.5 text-green-600 hover:bg-green-100 rounded-lg transition"
+                                    title="Approve Organizer"
+                                  >
+                                    <CheckCircle className="w-5 h-5" />
+                                  </button>
+                                )}
                                 <button 
-                                  onClick={() => handleApprove(org._id)}
-                                  className="p-1.5 text-green-600 hover:bg-green-100 rounded-lg transition"
-                                  title="Approve Organizer"
+                                  onClick={() => handleDeleteUser(org._id)}
+                                  className="p-1.5 text-red-500 hover:bg-red-100 rounded-lg transition"
+                                  title="Delete Organizer"
                                 >
-                                  <CheckCircle className="w-5 h-5" />
+                                  <Trash2 className="w-4 h-4" />
                                 </button>
-                              )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Students List */}
+                      <div className="space-y-4 border-x border-gray-50 px-4">
+                        <div className="flex flex-col gap-4 mb-4">
+                          <h3 className="font-black text-gray-900 flex items-center gap-2 text-lg uppercase tracking-tight">
+                            <Users className="w-5 h-5 text-blue-500" />
+                            Students
+                          </h3>
+                          <div className="flex flex-wrap gap-2">
+                            {studentBranches.map(branch => (
+                              <button
+                                key={branch}
+                                onClick={() => setStudentFilter(branch)}
+                                className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${
+                                  studentFilter === branch 
+                                    ? 'bg-blue-600 text-white shadow-md shadow-blue-100' 
+                                    : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
+                                }`}
+                              >
+                                {branch}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                          {college.students
+                            .filter(s => studentFilter === 'ALL' || s.studentDetails?.branch === studentFilter)
+                            .map(student => (
+                            <div key={student._id} className="bg-gray-50 p-4 rounded-2xl flex items-center justify-between border border-transparent hover:border-blue-200 transition">
+                              <div>
+                                <p className="font-bold text-gray-800 text-sm">{student.name}</p>
+                                <p className="text-gray-400 text-xs">{student.email}</p>
+                                <p className="text-blue-600 text-[10px] font-bold mt-1 uppercase tracking-wider">
+                                  {student.studentDetails?.branch || 'General Student'}
+                                </p>
+                              </div>
                               <button 
-                                onClick={() => handleDeleteUser(org._id)}
+                                onClick={() => handleDeleteUser(student._id)}
                                 className="p-1.5 text-red-500 hover:bg-red-100 rounded-lg transition"
-                                title="Delete Organizer"
+                                title="Delete Student"
                               >
                                 <Trash2 className="w-4 h-4" />
                               </button>
                             </div>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                       </div>
-                    </div>
 
-                    {/* Students List */}
-                    <div className="space-y-4">
-                      <h3 className="font-bold text-gray-900 flex items-center gap-2 mb-4">
-                        <Users className="w-5 h-5 text-blue-500" />
-                        Students
-                      </h3>
-                      <div className="space-y-3">
-                        {college.students.map(student => (
-                          <div key={student._id} className="bg-gray-50 p-4 rounded-2xl flex items-center justify-between border border-transparent hover:border-blue-200 transition">
-                            <div>
-                              <p className="font-bold text-gray-800 text-sm">{student.name}</p>
-                              <p className="text-gray-400 text-xs">{student.email}</p>
-                              <p className="text-blue-600 text-[10px] font-bold mt-1 uppercase tracking-wider">
-                                {student.studentDetails?.branch || 'General Student'}
-                              </p>
-                            </div>
-                            <button 
-                              onClick={() => handleDeleteUser(student._id)}
-                              className="p-1.5 text-red-500 hover:bg-red-100 rounded-lg transition"
-                              title="Delete Student"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                      {/* Events List */}
+                      <div className="space-y-4">
+                        <div className="flex flex-col gap-4 mb-4">
+                          <h3 className="font-black text-gray-900 flex items-center gap-2 text-lg uppercase tracking-tight">
+                            <Calendar className="w-5 h-5 text-red-500" />
+                            Events
+                          </h3>
+                          <div className="flex flex-wrap gap-2">
+                            {eventStatuses.map(status => (
+                              <button
+                                key={status}
+                                onClick={() => setEventFilter(status)}
+                                className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${
+                                  eventFilter === status 
+                                    ? 'bg-red-500 text-white shadow-md shadow-red-100' 
+                                    : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
+                                }`}
+                              >
+                                {status}
+                              </button>
+                            ))}
                           </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Events List */}
-                    <div className="space-y-4">
-                      <h3 className="font-bold text-gray-900 flex items-center gap-2 mb-4">
-                        <Calendar className="w-5 h-5 text-red-500" />
-                        Events
-                      </h3>
-                      <div className="space-y-3">
-                        {college.events.map(event => (
-                          <div key={event._id} className="bg-gray-50 p-4 rounded-2xl flex items-center justify-between">
-                            <div>
-                              <p className="font-bold text-gray-800 text-sm">{event.name}</p>
-                              <p className="text-gray-400 text-xs">{event.level}</p>
+                        </div>
+                        <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                          {college.events
+                            .filter(e => {
+                              if (eventFilter === 'ALL') return true;
+                              const expired = isExpired(e);
+                              return eventFilter === 'EXPIRED' ? expired : !expired;
+                            })
+                            .map(event => (
+                            <div key={event._id} className="bg-gray-50 p-4 rounded-2xl flex items-center justify-between border border-transparent hover:border-red-200 transition">
+                              <div>
+                                <p className="font-bold text-gray-800 text-sm">{event.name}</p>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <p className={`text-[10px] font-bold uppercase tracking-wider ${isExpired(event) ? 'text-red-500' : 'text-green-500'}`}>
+                                    {isExpired(event) ? 'Expired' : 'Live'}
+                                  </p>
+                                  <span className="text-gray-300 text-[10px]">•</span>
+                                  <p className="text-gray-400 text-[10px] uppercase">{event.level}</p>
+                                </div>
+                              </div>
+                              <button 
+                                onClick={() => handleDeleteEvent(event._id)}
+                                className="p-1.5 text-red-500 hover:bg-red-100 rounded-lg transition"
+                                title="Delete Event"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
                             </div>
-                            <button 
-                              onClick={() => handleDeleteEvent(event._id)}
-                              className="p-1.5 text-red-500 hover:bg-red-100 rounded-lg transition"
-                              title="Delete Event"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="text-center py-20 bg-white rounded-3xl border border-gray-100">

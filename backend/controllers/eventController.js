@@ -5,7 +5,7 @@ const User = require('../models/userModel');
 // @route   POST /api/events
 // @access  Private (Organizer)
 const createEvent = async (req, res) => {
-  const { name, level, department, category, description, url, upiId, photo, date, time } = req.body;
+  const { name, level, department, category, description, url, upiId, photo, date, time, registrationLimit } = req.body;
 
   if (!name || !level || !description || !date || !time) {
     return res.status(400).json({ message: 'Please add all required fields' });
@@ -21,6 +21,7 @@ const createEvent = async (req, res) => {
     description,
     url,
     upiId,
+    registrationLimit: parseInt(registrationLimit) || 0,
     photo,
     date,
     time,
@@ -51,31 +52,46 @@ const getEvents = async (req, res) => {
 // @route   POST /api/events/:id/enroll
 // @access  Private (Student)
 const enrollEvent = async (req, res) => {
+  const { mobileNo, email } = req.body;
   const event = await Event.findById(req.params.id);
 
   if (!event) {
     return res.status(404).json({ message: 'Event not found' });
   }
 
-  // Check if already enrolled
-  const alreadyEnrolled = event.registrations.find(
+  // Check deadline
+  const deadline = new Date(`${event.date.toISOString().split('T')[0]}T${event.time}`);
+  if (new Date() > deadline) {
+    return res.status(400).json({ message: 'Event registrations expired' });
+  }
+
+  // Check if paused
+  if (event.isPaused) {
+    return res.status(400).json({ message: 'Registration paused by organizer' });
+  }
+
+  // Check capacity limit
+  if (event.registrationLimit > 0 && event.registrations.length >= event.registrationLimit) {
+    return res.status(400).json({ message: 'Event registration limit reached' });
+  }
+
+  // Check if already registered
+  const alreadyRegistered = event.registrations.find(
     (reg) => reg.student.toString() === req.user._id.toString()
   );
 
-  if (alreadyEnrolled) {
-    return res.status(400).json({ message: 'Already enrolled in this event' });
+  if (alreadyRegistered) {
+    return res.status(400).json({ message: 'Already registered' });
   }
 
-  const registration = {
+  event.registrations.push({
     student: req.user._id,
-    mobileNo: req.body.mobileNo,
-    email: req.body.email || req.user.email,
-  };
+    mobileNo,
+    email: email || req.user.email,
+  });
 
-  event.registrations.push(registration);
   await event.save();
-
-  res.status(200).json({ message: 'Enrolled successfully' });
+  res.status(201).json({ message: 'Successfully registered' });
 };
 
 // @desc    Get event registrations (CSV export logic would go here)
@@ -115,10 +131,32 @@ const deleteEvent = async (req, res) => {
   res.json({ message: 'Event removed' });
 };
 
+// @desc    Toggle pause event
+// @route   PUT /api/events/:id/pause
+// @access  Private (Organizer)
+const togglePauseEvent = async (req, res) => {
+  const event = await Event.findById(req.params.id);
+
+  if (!event) {
+    return res.status(404).json({ message: 'Event not found' });
+  }
+
+  // Check if authorized
+  if (event.organizer.toString() !== req.user._id.toString()) {
+    return res.status(403).json({ message: 'Not authorized' });
+  }
+
+  event.isPaused = !event.isPaused;
+  await event.save();
+
+  res.json(event);
+};
+
 module.exports = {
   createEvent,
   getEvents,
   enrollEvent,
   getRegistrations,
   deleteEvent,
+  togglePauseEvent,
 };

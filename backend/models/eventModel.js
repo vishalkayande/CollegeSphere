@@ -33,7 +33,18 @@ const eventSchema = mongoose.Schema(
       required: [true, 'Please add a description'],
     },
     url: String,
-    upiId: String,
+    upiId: {
+      type: String,
+      required: false,
+    },
+    registrationLimit: {
+      type: Number,
+      default: 0, // 0 means no limit
+    },
+    isPaused: {
+      type: Boolean,
+      default: false,
+    },
     photo: String,
     date: {
       type: Date,

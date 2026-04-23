@@ -8,7 +8,7 @@ const Signup = () => {
     name: '',
     email: '',
     password: '',
-    collegeName: '',
+    collegeName: 'DIEMS',
     role: 'student',
     department: '',
     mobileNo: '',
@@ -96,18 +96,6 @@ const Signup = () => {
               placeholder="••••••••"
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-            />
-          </div>
-
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-2">College Name</label>
-            <input
-              type="text"
-              required
-              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
-              placeholder="Enter your college name"
-              value={formData.collegeName}
-              onChange={(e) => setFormData({ ...formData, collegeName: e.target.value })}
             />
           </div>
 
