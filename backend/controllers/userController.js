@@ -10,7 +10,7 @@ const forgotPassword = async (req, res) => {
   const { email } = req.body;
 
   try {
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: email.toLowerCase() });
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -140,16 +140,24 @@ const registerUser = async (req, res) => {
   }
 
   // Check if user exists
-  const userExists = await User.findOne({ email });
+  const userExists = await User.findOne({ 
+    $or: [
+      { email: email.toLowerCase() },
+      { name: { $regex: new RegExp(`^${name}$`, 'i') } }
+    ]
+  });
 
   if (userExists) {
-    return res.status(400).json({ message: 'User already exists' });
+    const message = userExists.email === email.toLowerCase() 
+      ? 'User already exists with this email' 
+      : 'User already exists with this name';
+    return res.status(400).json({ message });
   }
 
   // Create user
   const user = await User.create({
     name,
-    email,
+    email: email.toLowerCase(),
     password,
     collegeName,
     role: role || 'student',
@@ -196,7 +204,7 @@ const loginUser = async (req, res) => {
   const { email, password } = req.body;
 
   // Check for user email
-  const user = await User.findOne({ email });
+  const user = await User.findOne({ email: email.toLowerCase() });
 
   if (user && (await user.matchPassword(password))) {
     if (user.role === 'organizer' && !user.isApproved) {
