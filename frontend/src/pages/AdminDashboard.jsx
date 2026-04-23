@@ -305,16 +305,27 @@ const AdminDashboard = () => {
                             Organizers
                           </h3>
                           <div className="flex flex-wrap gap-2">
-                            {orgBranches.map(branch => (
-                              <button
-                                key={branch}
-                                type=""
-                                onClick={() => setOrgFilter(orgFilter === branch ? null : branch)}
-                                className="px-8 py-4 rounded-xl font-black uppercase text-sm transition-all bg-gray-50 text-gray-400 hover:bg-gray-100 hover:scale-105"
-                              >
-                                {branch}
-                              </button>
-                            ))}
+                            {orgBranches.map(branch => {
+                              const hasPending = college.organizers.some(org => 
+                                org.organizerDetails?.department === branch && !org.isApproved
+                              );
+                              return (
+                                <button
+                                  key={branch}
+                                  type=""
+                                  onClick={() => setOrgFilter(orgFilter === branch ? null : branch)}
+                                  className="relative px-8 py-4 rounded-xl font-black uppercase text-sm transition-all bg-gray-50 text-gray-400 hover:bg-gray-100 hover:scale-105"
+                                >
+                                  {branch}
+                                  {hasPending && (
+                                    <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                      <span className="relative inline-flex rounded-full h-3 w-3 bg-red-600 border border-white"></span>
+                                    </span>
+                                  )}
+                                </button>
+                              );
+                            })}
                           </div>
                         </div>
                         <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
