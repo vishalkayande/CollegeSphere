@@ -10,6 +10,7 @@ const StudentDashboard = () => {
   const [activeTab, setActiveTab] = useState('institute');
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
@@ -83,12 +84,17 @@ const StudentDashboard = () => {
     { id: 'club', label: 'Club Level', icon: Users },
   ];
 
+  const filteredEvents = events.filter(event => 
+    event.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    event.organizer?.name?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       {/* Welcome Header */}
-      <div className="mb-10 flex flex-col md:flex-row items-center gap-6">
+      <div className="mb-10 flex flex-col md:flex-row items-center justify-center gap-6">
         <img src="/logo.png" alt="CollegeSphere Logo" className="h-24 w-auto drop-shadow-md" />
-        <div>
+        <div className="text-center md:text-left">
           <h1 className="text-4xl font-extrabold text-gray-900 mb-2">
             Discover <span className="text-blue-600">Events</span>
           </h1>
@@ -97,7 +103,7 @@ const StudentDashboard = () => {
       </div>
 
       {/* Tabs */}
-      <div className="flex flex-wrap gap-6 mb-8 bg-white p-2.5 rounded-2xl shadow-sm border border-gray-100 w-fit">
+      <div className="flex flex-wrap gap-6 mb-8 bg-white p-2.5 rounded-2xl shadow-sm border border-gray-100 w-fit mx-auto">
         {tabs.map((tab) => (
           <button
             key={tab.id}
@@ -115,12 +121,14 @@ const StudentDashboard = () => {
       </div>
 
       {/* Search and Filter */}
-      <div className="mb-8 flex flex-col md:flex-row gap-4">
+      <div className="mb-8 flex flex-col md:flex-row gap-4 max-w-2xl mx-auto">
         <div className="relative flex-1">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
           <input
             type="text"
             placeholder="Search events by name, organizer..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-12 pr-4 py-4 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
           />
         </div>
@@ -133,9 +141,9 @@ const StudentDashboard = () => {
             <div key={n} className="bg-white rounded-2xl h-96 animate-pulse border border-gray-100"></div>
           ))}
         </div>
-      ) : events.length > 0 ? (
+      ) : filteredEvents.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {events.map((event) => (
+          {filteredEvents.map((event) => (
             <div
               key={event._id}
               className="group bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 flex flex-col"
@@ -261,32 +269,6 @@ const StudentDashboard = () => {
               </div>
               <h2 className="text-2xl font-bold text-gray-900">Complete Your Profile</h2>
               <p className="text-gray-500 mt-2">We need a few more details before you can register for events.</p>
-              <div className="flex items-center justify-center gap-4 mt-2">
-                <button 
-                  type="button"
-                  onClick={async () => {
-                    try {
-                      const res = await axios.get(`${API_URL}/api/ping`);
-                      alert('Connection to backend: SUCCESS! ' + res.data.timestamp);
-                    } catch (err) {
-                      alert('Connection to backend: FAILED! ' + err.message);
-                    }
-                  }}
-                  className="text-[10px] text-blue-500 underline"
-                >
-                  Test Connection
-                </button>
-                <button 
-                  type="button"
-                  onClick={() => {
-                    localStorage.removeItem('user');
-                    window.location.reload();
-                  }}
-                  className="text-[10px] text-red-500 underline"
-                >
-                  Force Reset Session
-                </button>
-              </div>
             </div>
 
             {formError && (

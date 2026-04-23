@@ -10,9 +10,9 @@ const AdminDashboard = () => {
   const [allEvents, setAllEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(null); // null = welcome state with big logo
-  const [orgFilter, setOrgFilter] = useState('ALL');
-  const [studentFilter, setStudentFilter] = useState('ALL');
-  const [eventFilter, setEventFilter] = useState('ALL');
+  const [orgFilter, setOrgFilter] = useState(null);
+  const [studentFilter, setStudentFilter] = useState(null);
+  const [eventFilter, setEventFilter] = useState(null);
   const API_URL = 'http://localhost:5002'; // Define API URL for consistency
 
   const isExpired = (event) => {
@@ -274,24 +274,24 @@ const AdminDashboard = () => {
           ) : data.length > 0 ? (
             <div className="space-y-12">
               {data.map((college) => {
-                const orgBranches = ['ALL', ...new Set(college.organizers.map(o => o.organizerDetails?.department).filter(Boolean))];
-                const studentBranches = ['ALL', ...new Set(college.students.map(s => s.studentDetails?.branch).filter(Boolean))];
-                const eventStatuses = ['ALL', 'LIVE', 'EXPIRED'];
+                const orgBranches = [...new Set(college.organizers.map(o => o.organizerDetails?.department).filter(Boolean))];
+                const studentBranches = [...new Set(college.students.map(s => s.studentDetails?.branch).filter(Boolean))];
+                const eventStatuses = ['LIVE', 'EXPIRED'];
 
                 return (
                   <div key={college.college} className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden">
                     {/* College Header */}
-                    <div className="bg-blue-600 px-8 py-6 flex items-center justify-between text-white">
+                    <div className="bg-blue-600 px-8 py-6 flex items-center justify-center text-white relative">
                       <div className="flex items-center gap-4">
                         <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-sm">
                           <Building2 className="w-8 h-8" />
                         </div>
-                        <div>
+                        <div className="text-center">
                           <h2 className="text-2xl font-bold">{college.college}</h2>
                           <p className="text-blue-100 text-sm">{college.students.length} Students • {college.organizers.length} Organizers</p>
                         </div>
                       </div>
-                      <div className="bg-white/10 px-4 py-2 rounded-xl text-sm font-medium backdrop-blur-sm border border-white/10">
+                      <div className="absolute right-8 bg-white/10 px-4 py-2 rounded-xl text-sm font-medium backdrop-blur-sm border border-white/10 hidden md:block">
                         {college.events.length} Active Events
                       </div>
                     </div>
@@ -308,12 +308,9 @@ const AdminDashboard = () => {
                             {orgBranches.map(branch => (
                               <button
                                 key={branch}
-                                onClick={() => setOrgFilter(branch)}
-                                className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${
-                                  orgFilter === branch 
-                                    ? 'bg-yellow-500 text-white shadow-md shadow-yellow-100' 
-                                    : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
-                                }`}
+                                type=""
+                                onClick={() => setOrgFilter(orgFilter === branch ? null : branch)}
+                                className="px-8 py-4 rounded-xl font-black uppercase text-sm transition-all bg-gray-50 text-gray-400 hover:bg-gray-100 hover:scale-105"
                               >
                                 {branch}
                               </button>
@@ -321,37 +318,38 @@ const AdminDashboard = () => {
                           </div>
                         </div>
                         <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-                          {college.organizers
-                            .filter(org => orgFilter === 'ALL' || org.organizerDetails?.department === orgFilter)
+                          {orgFilter && college.organizers
+                            .filter(org => org.organizerDetails?.department === orgFilter)
                             .map(org => (
                             <div key={org._id} className="bg-gray-50 p-4 rounded-2xl flex items-center justify-between border border-transparent hover:border-yellow-200 transition">
-                              <div>
-                                <p className="font-bold text-gray-800 text-sm">{org.name}</p>
-                                <p className="text-gray-400 text-xs">{org.email}</p>
-                                <p className="text-blue-500 text-[10px] font-bold mt-1 uppercase tracking-wider">
-                                  {org.organizerDetails?.department || 'Organizer'}
-                                </p>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                {!org.isApproved && (
+                                <div>
+                                  <p className="font-bold text-gray-800 text-sm">{org.name}</p>
+                                  <p className="text-gray-400 text-xs">{org.email}</p>
+                                  <p className="text-blue-500 text-[10px] font-bold mt-1 uppercase tracking-wider">
+                                    {org.organizerDetails?.department || 'Organizer'}
+                                  </p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  {!org.isApproved && (
+                                    <button 
+                                      onClick={() => handleApprove(org._id)}
+                                      className="p-1.5 text-green-600 hover:bg-green-100 rounded-lg transition"
+                                      title="Approve Organizer"
+                                    >
+                                      <CheckCircle className="w-5 h-5" />
+                                    </button>
+                                  )}
                                   <button 
-                                    onClick={() => handleApprove(org._id)}
-                                    className="p-1.5 text-green-600 hover:bg-green-100 rounded-lg transition"
-                                    title="Approve Organizer"
+                                    onClick={() => handleDeleteUser(org._id)}
+                                    className="p-1.5 text-red-500 hover:bg-red-100 rounded-lg transition"
+                                    title="Delete Organizer"
                                   >
-                                    <CheckCircle className="w-5 h-5" />
+                                    <Trash2 className="w-4 h-4" />
                                   </button>
-                                )}
-                                <button 
-                                  onClick={() => handleDeleteUser(org._id)}
-                                  className="p-1.5 text-red-500 hover:bg-red-100 rounded-lg transition"
-                                  title="Delete Organizer"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
+                                </div>
                               </div>
-                            </div>
-                          ))}
+                            ))
+                          }
                         </div>
                       </div>
 
@@ -366,12 +364,9 @@ const AdminDashboard = () => {
                             {studentBranches.map(branch => (
                               <button
                                 key={branch}
-                                onClick={() => setStudentFilter(branch)}
-                                className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${
-                                  studentFilter === branch 
-                                    ? 'bg-blue-600 text-white shadow-md shadow-blue-100' 
-                                    : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
-                                }`}
+                                type=""
+                                onClick={() => setStudentFilter(studentFilter === branch ? null : branch)}
+                                className="px-8 py-4 rounded-xl font-black uppercase text-sm transition-all bg-gray-50 text-gray-400 hover:bg-gray-100 hover:scale-105"
                               >
                                 {branch}
                               </button>
@@ -379,26 +374,27 @@ const AdminDashboard = () => {
                           </div>
                         </div>
                         <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-                          {college.students
-                            .filter(s => studentFilter === 'ALL' || s.studentDetails?.branch === studentFilter)
+                          {studentFilter && college.students
+                            .filter(s => s.studentDetails?.branch === studentFilter)
                             .map(student => (
                             <div key={student._id} className="bg-gray-50 p-4 rounded-2xl flex items-center justify-between border border-transparent hover:border-blue-200 transition">
-                              <div>
-                                <p className="font-bold text-gray-800 text-sm">{student.name}</p>
-                                <p className="text-gray-400 text-xs">{student.email}</p>
-                                <p className="text-blue-600 text-[10px] font-bold mt-1 uppercase tracking-wider">
-                                  {student.studentDetails?.branch || 'General Student'}
-                                </p>
+                                <div>
+                                  <p className="font-bold text-gray-800 text-sm">{student.name}</p>
+                                  <p className="text-gray-400 text-xs">{student.email}</p>
+                                  <p className="text-blue-600 text-[10px] font-bold mt-1 uppercase tracking-wider">
+                                    {student.studentDetails?.branch || 'General Student'}
+                                  </p>
+                                </div>
+                                <button 
+                                  onClick={() => handleDeleteUser(student._id)}
+                                  className="p-1.5 text-red-500 hover:bg-red-100 rounded-lg transition"
+                                  title="Delete Student"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
                               </div>
-                              <button 
-                                onClick={() => handleDeleteUser(student._id)}
-                                className="p-1.5 text-red-500 hover:bg-red-100 rounded-lg transition"
-                                title="Delete Student"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          ))}
+                            ))
+                          }
                         </div>
                       </div>
 
@@ -413,12 +409,9 @@ const AdminDashboard = () => {
                             {eventStatuses.map(status => (
                               <button
                                 key={status}
-                                onClick={() => setEventFilter(status)}
-                                className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${
-                                  eventFilter === status 
-                                    ? 'bg-red-500 text-white shadow-md shadow-red-100' 
-                                    : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
-                                }`}
+                                type=""
+                                onClick={() => setEventFilter(eventFilter === status ? null : status)}
+                                className="px-8 py-4 rounded-xl font-black uppercase text-sm transition-all bg-gray-50 text-gray-400 hover:bg-gray-100 hover:scale-105"
                               >
                                 {status}
                               </button>
@@ -426,33 +419,33 @@ const AdminDashboard = () => {
                           </div>
                         </div>
                         <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-                          {college.events
+                          {eventFilter && college.events
                             .filter(e => {
-                              if (eventFilter === 'ALL') return true;
                               const expired = isExpired(e);
                               return eventFilter === 'EXPIRED' ? expired : !expired;
                             })
                             .map(event => (
                             <div key={event._id} className="bg-gray-50 p-4 rounded-2xl flex items-center justify-between border border-transparent hover:border-red-200 transition">
-                              <div>
-                                <p className="font-bold text-gray-800 text-sm">{event.name}</p>
-                                <div className="flex items-center gap-2 mt-1">
-                                  <p className={`text-[10px] font-bold uppercase tracking-wider ${isExpired(event) ? 'text-red-500' : 'text-green-500'}`}>
-                                    {isExpired(event) ? 'Expired' : 'Live'}
-                                  </p>
-                                  <span className="text-gray-300 text-[10px]">•</span>
-                                  <p className="text-gray-400 text-[10px] uppercase">{event.level}</p>
+                                <div>
+                                  <p className="font-bold text-gray-800 text-sm">{event.name}</p>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <p className={`text-[10px] font-bold uppercase tracking-wider ${isExpired(event) ? 'text-red-500' : 'text-green-500'}`}>
+                                      {isExpired(event) ? 'Expired' : 'Live'}
+                                    </p>
+                                    <span className="text-gray-300 text-[10px]">•</span>
+                                    <p className="text-gray-400 text-[10px] uppercase">{event.level}</p>
+                                  </div>
                                 </div>
+                                <button 
+                                  onClick={() => handleDeleteEvent(event._id)}
+                                  className="p-1.5 text-red-500 hover:bg-red-100 rounded-lg transition"
+                                  title="Delete Event"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
                               </div>
-                              <button 
-                                onClick={() => handleDeleteEvent(event._id)}
-                                className="p-1.5 text-red-500 hover:bg-red-100 rounded-lg transition"
-                                title="Delete Event"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          ))}
+                            ))
+                          }
                         </div>
                       </div>
                     </div>
