@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import { LayoutGrid, Building2, Users, Search, MapPin, Calendar, Clock, ChevronRight } from 'lucide-react';
+import { LayoutGrid, Building2, Users, Search, MapPin, Calendar, Clock, ChevronRight, Info, CreditCard } from 'lucide-react';
 
 const StudentDashboard = () => {
   const { user, updateUser, logout } = useAuth();
@@ -63,6 +63,11 @@ const StudentDashboard = () => {
 
   const isRegistered = (event) => {
     return event.registrations?.some(reg => reg.student === user._id || reg.student?._id === user._id);
+  };
+
+  const isExpired = (event) => {
+    const deadline = new Date(`${event.date}T${event.time}`);
+    return new Date() > deadline;
   };
 
   const isEligible = (event) => {
@@ -152,10 +157,21 @@ const StudentDashboard = () => {
                 <h3 className="text-xl font-bold text-gray-900 mb-3 group-hover:text-blue-600 transition">
                   {event.name}
                 </h3>
+
+                {/* Event Description */}
+                <div className="mb-4 bg-gray-50/50 p-3 rounded-xl border border-gray-100">
+                  <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
+                    <Info className="w-3 h-3" /> Description
+                  </div>
+                  <p className="text-sm text-gray-600 line-clamp-3 leading-relaxed">
+                    {event.description}
+                  </p>
+                </div>
                 
                 <div className="space-y-3 mb-4">
                   <div className="flex items-center text-gray-500 gap-2 text-sm">
                     <Calendar className="w-4 h-4 text-blue-500" />
+                    <span className="font-medium">Registration Deadline:</span>
                     <span>{new Date(event.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
                   </div>
                   <div className="flex items-center text-gray-500 gap-2 text-sm">
@@ -167,6 +183,17 @@ const StudentDashboard = () => {
                     <span className="truncate">{event.college}</span>
                   </div>
                 </div>
+
+                {/* UPI Details - Only shown for registered students */}
+                {isRegistered(event) && event.upiId && (
+                  <div className="mb-6 bg-blue-50/50 p-3 rounded-xl border border-blue-100 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <div className="flex items-center gap-2 text-[10px] font-black text-blue-400 uppercase tracking-widest mb-1">
+                      <CreditCard className="w-3 h-3" /> Payment Details
+                    </div>
+                    <p className="text-sm font-bold text-blue-700 select-all">UPI ID: {event.upiId}</p>
+                    <p className="text-[10px] text-blue-400 mt-1 italic">Please complete payment to confirm your slot.</p>
+                  </div>
+                )}
 
                 {/* Organizer Contact Details */}
                 <div className="mb-6 pt-4 border-t border-gray-50">
@@ -180,18 +207,20 @@ const StudentDashboard = () => {
 
                 <button
                   onClick={() => handleRegister(event._id)}
-                  disabled={!isEligible(event) || isRegistered(event)}
+                  disabled={!isEligible(event) || isRegistered(event) || isExpired(event)}
                   className={`mt-auto w-full flex items-center justify-center gap-2 font-bold py-4 rounded-2xl transition-all duration-200 group/btn ${
-                    !isEligible(event) || isRegistered(event)
+                    !isEligible(event) || isRegistered(event) || isExpired(event)
                       ? 'bg-gray-100 text-gray-400 cursor-not-allowed grayscale'
                       : 'bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white'
                   }`}
                 >
                   {isRegistered(event) 
                     ? 'Registered ✓' 
-                    : (!isEligible(event)
-                        ? 'Only for ' + event.department
-                        : 'Register Now')}
+                    : (isExpired(event)
+                        ? 'Expired ✕'
+                        : (!isEligible(event)
+                            ? 'Only for ' + event.department
+                            : 'Register Now'))}
                   <ChevronRight className="w-4 h-4 group-hover/btn:translate-x-1 transition" />
                 </button>
               </div>
