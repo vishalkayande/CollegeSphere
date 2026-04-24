@@ -285,15 +285,20 @@ const AdminDashboard = () => {
                           <History className="w-3 h-3" /> Created
                         </p>
                         <p className="text-xs font-bold text-gray-600">
-                          {new Date(event.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          {new Date(event.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                         </p>
                       </div>
                       <div className="flex flex-col gap-1">
-                        <p className="text-[10px] font-black text-red-400 uppercase tracking-widest flex items-center gap-1">
-                          <CalendarDays className="w-3 h-3" /> Closed On
+                        <p className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-1 ${
+                          new Date() > new Date(`${event.date.split('T')[0]}T${event.time}`) ? 'text-red-400' : 'text-green-500'
+                        }`}>
+                          <CalendarDays className="w-3 h-3" /> 
+                          {new Date() > new Date(`${event.date.split('T')[0]}T${event.time}`) ? 'Closed On' : 'Closing On'}
                         </p>
-                        <p className="text-xs font-bold text-red-600">
-                          {new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        <p className={`text-xs font-bold ${
+                          new Date() > new Date(`${event.date.split('T')[0]}T${event.time}`) ? 'text-red-600' : 'text-green-600'
+                        }`}>
+                          {new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                         </p>
                       </div>
                     </div>
