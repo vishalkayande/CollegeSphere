@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
-import { Lock, ArrowLeft, CheckCircle } from 'lucide-react';
+import { Lock, ArrowLeft, CheckCircle, ShieldCheck, ShieldAlert, CheckCircle2, XCircle } from 'lucide-react';
 
 const ResetPassword = () => {
   const [password, setPassword] = useState('');
@@ -13,6 +13,16 @@ const ResetPassword = () => {
   const navigate = useNavigate();
   const API_URL = 'http://localhost:5002';
 
+  const getPasswordErrorMessage = (pass) => {
+    if (!pass) return '';
+    if (pass.length < 8) return 'Min 8 chars required';
+    if (!/[A-Z]/.test(pass)) return 'Need uppercase letter';
+    if (!/[a-z]/.test(pass)) return 'Need lowercase letter';
+    if (!/[0-9]/.test(pass)) return 'Need a number';
+    if (!/[!@#$%^&*(),.?":{}|<>]/.test(pass)) return 'Need special symbol';
+    return '';
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -20,8 +30,12 @@ const ResetPassword = () => {
       return setStatus({ type: 'error', message: 'Passwords do not match' });
     }
 
-    if (password.length < 6) {
-      return setStatus({ type: 'error', message: 'Password must be at least 6 characters' });
+    const passwordError = getPasswordErrorMessage(password);
+    if (passwordError) {
+      return setStatus({ 
+        type: 'error', 
+        message: `Password: ${passwordError}` 
+      });
     }
 
     setLoading(true);
@@ -73,15 +87,36 @@ const ResetPassword = () => {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">New Password</label>
-              <input
-                type="password"
-                required
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={loading}
-              />
+              <div className="relative">
+                <input
+                  type="password"
+                  required
+                  className={`w-full px-4 py-3 rounded-xl border focus:ring-2 focus:border-transparent outline-none transition ${
+                    password && getPasswordErrorMessage(password)
+                      ? 'border-amber-200 focus:ring-amber-500'
+                      : 'border-gray-200 focus:ring-blue-500'
+                  }`}
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={loading}
+                />
+                {password && (
+                  <div className="absolute right-3 top-3.5">
+                    {!getPasswordErrorMessage(password) ? (
+                      <ShieldCheck className="w-5 h-5 text-green-500" />
+                    ) : (
+                      <ShieldAlert className="w-5 h-5 text-amber-500" />
+                    )}
+                  </div>
+                )}
+              </div>
+              
+              {password && getPasswordErrorMessage(password) && (
+                <p className="mt-1.5 text-[11px] font-medium text-amber-600 flex items-center gap-1">
+                  <ShieldAlert className="w-3 h-3" /> {getPasswordErrorMessage(password)}
+                </p>
+              )}
             </div>
 
             <div>

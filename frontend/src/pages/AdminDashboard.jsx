@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import { Building2, Users, Calendar, ShieldAlert, Trash2, CheckCircle, XCircle, ShieldCheck, LayoutGrid, Download, Trophy, User, Plus } from 'lucide-react';
+import { Building2, Users, Calendar, ShieldAlert, Trash2, CheckCircle, XCircle, ShieldCheck, LayoutGrid, Download, Trophy, User, Plus, History, Mail, Phone, CalendarDays, Clock } from 'lucide-react';
 
 const AdminDashboard = () => {
   const { user } = useAuth();
@@ -276,12 +276,57 @@ const AdminDashboard = () => {
                     </div>
                   </div>
                   <p className="text-gray-500 text-sm mb-4 line-clamp-2">{event.description}</p>
-                  <div className="space-y-2 border-t pt-4 mt-auto">
+                  
+                  <div className="space-y-3 mb-6 pt-4 border-t border-gray-50">
+                    {/* Event Dates */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="flex flex-col gap-1">
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1">
+                          <History className="w-3 h-3" /> Created
+                        </p>
+                        <p className="text-xs font-bold text-gray-600">
+                          {new Date(event.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </p>
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <p className="text-[10px] font-black text-red-400 uppercase tracking-widest flex items-center gap-1">
+                          <CalendarDays className="w-3 h-3" /> Closed On
+                        </p>
+                        <p className="text-xs font-bold text-red-600">
+                          {new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Organizer Info */}
+                    <div className="bg-gray-50 p-3 rounded-2xl space-y-2">
+                      <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest flex items-center gap-1">
+                        <User className="w-3 h-3" /> Organizer
+                      </p>
+                      <div className="space-y-1">
+                        <p className="text-sm font-black text-gray-800 flex items-center gap-2">
+                          {event.organizer?.name}
+                          <span className="text-[10px] px-2 py-0.5 bg-blue-100 text-blue-600 rounded-full uppercase">
+                            {event.level}
+                          </span>
+                        </p>
+                        <div className="flex flex-col gap-0.5">
+                          <p className="text-[10px] text-gray-500 flex items-center gap-1">
+                            <Mail className="w-3 h-3" /> {event.organizer?.email}
+                          </p>
+                          {event.organizer?.organizerDetails?.mobileNo && (
+                            <p className="text-[10px] text-gray-500 flex items-center gap-1">
+                              <Phone className="w-3 h-3" /> {event.organizer?.organizerDetails?.mobileNo}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 mt-auto">
                     <div className="flex items-center gap-2 text-[10px] font-medium text-gray-400">
                       <Building2 className="w-3.5 h-3.5 text-blue-400" /> {event.college}
-                    </div>
-                    <div className="flex items-center gap-2 text-[10px] font-medium text-gray-400">
-                      <Users className="w-3.5 h-3.5 text-yellow-400" /> {event.organizer?.name}
                     </div>
                   </div>
                 </div>

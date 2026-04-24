@@ -105,6 +105,12 @@ const resetPassword = async (req, res) => {
       return res.status(400).json({ message: 'Invalid or expired token' });
     }
 
+    // Validate password strength
+    const passwordError = validatePassword(req.body.password);
+    if (passwordError) {
+      return res.status(400).json({ message: passwordError });
+    }
+
     // Set new password
     user.password = req.body.password;
     user.resetPasswordToken = undefined;
@@ -129,6 +135,22 @@ const generateToken = (id) => {
   });
 };
 
+// Password validation helper
+const validatePassword = (password) => {
+  const minLength = 8;
+  const hasUppercase = /[A-Z]/.test(password);
+  const hasLowercase = /[a-z]/.test(password);
+  const hasNumber = /[0-9]/.test(password);
+  const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+
+  if (password.length < minLength) return 'Password must be at least 8 characters long';
+  if (!hasUppercase) return 'Password must contain at least one uppercase letter';
+  if (!hasLowercase) return 'Password must contain at least one lowercase letter';
+  if (!hasNumber) return 'Password must contain at least one number';
+  if (!hasSpecialChar) return 'Password must contain at least one special character';
+  return null;
+};
+
 // @desc    Register user
 // @route   POST /api/users/signup
 // @access  Public
@@ -137,6 +159,12 @@ const registerUser = async (req, res) => {
 
   if (!name || !email || !password || (role !== 'admin' && !collegeName)) {
     return res.status(400).json({ message: 'Please add all fields' });
+  }
+
+  // Validate password strength
+  const passwordError = validatePassword(password);
+  if (passwordError) {
+    return res.status(400).json({ message: passwordError });
   }
 
   // Check if user exists

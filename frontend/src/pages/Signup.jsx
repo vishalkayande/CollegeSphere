@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { UserPlus } from 'lucide-react';
+import { UserPlus, ShieldCheck, ShieldAlert, CheckCircle2, XCircle } from 'lucide-react';
 
 const Signup = () => {
   const [formData, setFormData] = useState({
@@ -19,10 +19,27 @@ const Signup = () => {
   const { signup } = useAuth();
   const navigate = useNavigate();
 
+  const getPasswordErrorMessage = (password) => {
+    if (!password) return '';
+    if (password.length < 8) return 'Min 8 chars required';
+    if (!/[A-Z]/.test(password)) return 'Need uppercase letter';
+    if (!/[a-z]/.test(password)) return 'Need lowercase letter';
+    if (!/[0-9]/.test(password)) return 'Need a number';
+    if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) return 'Need special symbol';
+    return '';
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setSuccess('');
+
+    const passwordError = getPasswordErrorMessage(formData.password);
+    if (passwordError) {
+      setError(`Password: ${passwordError}`);
+      return;
+    }
+
     try {
       const data = await signup(formData);
       if (formData.role === 'organizer') {
@@ -89,14 +106,35 @@ const Signup = () => {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
-            <input
-              type="password"
-              required
-              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
-              placeholder="••••••••"
-              value={formData.password}
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-            />
+            <div className="relative">
+              <input
+                type="password"
+                required
+                className={`w-full px-4 py-3 rounded-xl border focus:ring-2 focus:border-transparent outline-none transition ${
+                  formData.password && getPasswordErrorMessage(formData.password)
+                    ? 'border-amber-200 focus:ring-amber-500'
+                    : 'border-gray-200 focus:ring-blue-500'
+                }`}
+                placeholder="••••••••"
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              />
+              {formData.password && (
+                <div className="absolute right-3 top-3.5">
+                  {!getPasswordErrorMessage(formData.password) ? (
+                    <ShieldCheck className="w-5 h-5 text-green-500" />
+                  ) : (
+                    <ShieldAlert className="w-5 h-5 text-amber-500" />
+                  )}
+                </div>
+              )}
+            </div>
+            
+            {formData.password && getPasswordErrorMessage(formData.password) && (
+              <p className="mt-1.5 text-[11px] font-medium text-amber-600 flex items-center gap-1">
+                <ShieldAlert className="w-3 h-3" /> {getPasswordErrorMessage(formData.password)}
+              </p>
+            )}
           </div>
 
           <div className="md:col-span-2">
