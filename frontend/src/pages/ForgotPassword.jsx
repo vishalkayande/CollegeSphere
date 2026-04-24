@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Mail, ArrowLeft, CheckCircle } from 'lucide-react';
 
@@ -7,7 +7,8 @@ const ForgotPassword = () => {
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState({ type: '', message: '' });
   const [loading, setLoading] = useState(false);
-  const [resetLink, setResetLink] = useState(''); // For development mode
+  const [developmentOTP, setDevelopmentOTP] = useState(''); // For development mode
+  const navigate = useNavigate();
 
   const API_URL = 'http://localhost:5002';
 
@@ -20,13 +21,18 @@ const ForgotPassword = () => {
       const res = await axios.post(`${API_URL}/api/users/forgotpassword`, { email });
       setStatus({ 
         type: 'success', 
-        message: 'Password reset link has been sent to your email.' 
+        message: 'A 6-digit OTP has been sent to your email.' 
       });
       
-      // For development: Show the link if returned by backend
-      if (res.data.developmentLink) {
-        setResetLink(res.data.developmentLink);
+      // For development: Show the OTP if returned by backend
+      if (res.data.developmentOTP) {
+        setDevelopmentOTP(res.data.developmentOTP);
       }
+
+      // After a short delay, redirect to reset password page
+      setTimeout(() => {
+        navigate('/reset-password', { state: { email } });
+      }, 3000);
     } catch (err) {
       setStatus({ 
         type: 'error', 
@@ -51,7 +57,7 @@ const ForgotPassword = () => {
               <Mail className="w-8 h-8 text-blue-600" />
             </div>
             <h1 className="text-2xl font-bold text-gray-900 mb-2">Forgot Password?</h1>
-            <p className="text-gray-500">No worries! Enter your email and we'll send you a link to reset it.</p>
+            <p className="text-gray-500">Enter your email and we'll send you a 6-digit OTP to reset your password.</p>
           </div>
         </div>
 
@@ -64,12 +70,12 @@ const ForgotPassword = () => {
           </div>
         )}
 
-        {status.type === 'success' && resetLink && (
+        {status.type === 'success' && developmentOTP && (
           <div className="bg-yellow-50 p-4 rounded-xl mb-6 border border-yellow-100">
-            <p className="text-xs font-bold text-yellow-800 uppercase mb-2">Development Link:</p>
-            <a href={resetLink} className="text-xs text-blue-600 break-all hover:underline">
-              {resetLink}
-            </a>
+            <p className="text-xs font-bold text-yellow-800 uppercase mb-2">Development OTP (Email not configured):</p>
+            <p className="text-2xl font-mono font-bold text-blue-600 tracking-widest text-center">
+              {developmentOTP}
+            </p>
           </div>
         )}
 
@@ -92,7 +98,7 @@ const ForgotPassword = () => {
             disabled={loading || status.type === 'success'}
             className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-semibold py-3 rounded-xl transition shadow-lg shadow-blue-200"
           >
-            {loading ? 'Sending...' : 'Send Reset Link'}
+            {loading ? 'Sending...' : 'Send OTP'}
           </button>
         </form>
       </div>

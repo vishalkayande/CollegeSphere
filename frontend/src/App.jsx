@@ -25,7 +25,7 @@ function AppContent() {
           <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />
           <Route path="/signup" element={!user ? <Signup /> : <Navigate to="/" />} />
           <Route path="/forgot-password" element={!user ? <ForgotPassword /> : <Navigate to="/" />} />
-          <Route path="/reset-password/:token" element={!user ? <ResetPassword /> : <Navigate to="/" />} />
+          <Route path="/reset-password" element={!user ? <ResetPassword /> : <Navigate to="/" />} />
           <Route path="/" element={user ? <Dashboard /> : <Home />} />
           <Route path="/admin" element={<PrivateRoute><AdminDashboard /></PrivateRoute>} />
         </Routes>

@@ -46,8 +46,8 @@ const userSchema = mongoose.Schema(
       mobileNo: String,
       contactEmail: String,
     },
-    resetPasswordToken: String,
-    resetPasswordExpire: Date,
+    resetPasswordOTP: String,
+    resetPasswordOTPExpire: Date,
   },
   {
     timestamps: true,
