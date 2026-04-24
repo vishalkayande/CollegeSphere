@@ -20,6 +20,9 @@ const eventSchema = mongoose.Schema(
       enum: ['department', 'institute', 'club'],
       required: true,
     },
+    clubName: {
+      type: String,
+    },
     department: {
       type: String,
       enum: ['CSE', 'AIML', 'MECH', 'CIVIL', 'E&TC', 'MBA', 'OTHER', 'ALL'],
@@ -65,6 +68,23 @@ const eventSchema = mongoose.Schema(
         registeredAt: {
           type: Date,
           default: Date.now,
+        },
+      },
+    ],
+    winners: [
+      {
+        student: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'User',
+        },
+        name: String,
+        rollNo: String,
+        class: String,
+        branch: String,
+        position: {
+          type: Number,
+          min: 1,
+          max: 5,
         },
       },
     ],

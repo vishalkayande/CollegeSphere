@@ -19,8 +19,19 @@ const OrganizerDashboard = () => {
     time: '',
     department: 'ALL',
     registrationLimit: 0,
+    clubName: '',
   });
   const [imagePreview, setImagePreview] = useState(null);
+  const [showWinnersModal, setShowWinnersModal] = useState(false);
+  const [selectedEventForWinners, setSelectedEventForWinners] = useState(null);
+  const [winnerEntries, setWinnerEntries] = useState([
+    { name: '', position: 1 },
+    { name: '', position: 2 },
+    { name: '', position: 3 },
+    { name: '', position: 4 },
+    { name: '', position: 5 },
+  ]);
+  const [isSeeWinnersMode, setIsSeeWinnersMode] = useState(false);
 
   const isExpired = (event) => {
     const deadline = new Date(`${event.date.split('T')[0]}T${event.time}`);
@@ -83,6 +94,7 @@ const OrganizerDashboard = () => {
         time: '',
         department: 'ALL',
         registrationLimit: 0,
+        clubName: '',
       });
       setImagePreview(null);
     } catch (err) {
@@ -240,7 +252,7 @@ const OrganizerDashboard = () => {
                 <th className="px-6 py-4">Event Name</th>
                 <th className="px-6 py-4">Organizer</th>
                 <th className="px-6 py-4">Date & Time</th>
-                <th className="px-6 py-4">Category</th>
+                <th className="px-6 py-4">Level & Category</th>
                 <th className="px-6 py-4">Registrations</th>
                 <th className="px-6 py-4">Actions</th>
               </tr>
@@ -269,13 +281,25 @@ const OrganizerDashboard = () => {
                   </td>
                   <td className="px-6 py-4">
                     <span className="bg-blue-50 text-blue-600 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide">
-                      {event.level === 'department' ? 'DEPARTMENT' : (event.category || event.level)}
+                      {event.level}
                     </span>
-                    {event.level === 'department' && (
-                      <div className="text-[10px] font-black text-blue-400 mt-1 ml-1 tracking-tighter">
-                        {event.department}
-                      </div>
-                    )}
+                    <div className="mt-1 ml-1 flex flex-col gap-0.5">
+                      {event.level === 'department' && (
+                        <div className="text-[10px] font-black text-blue-400 tracking-tighter uppercase">
+                          {event.department}
+                        </div>
+                      )}
+                      {event.level === 'club' && event.clubName && (
+                        <div className="text-[10px] font-black text-purple-500 tracking-tighter uppercase">
+                          {event.clubName}
+                        </div>
+                      )}
+                      {event.category && (
+                        <div className="text-[9px] font-medium text-gray-400 tracking-tight italic">
+                          {event.category}
+                        </div>
+                      )}
+                    </div>
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex flex-col gap-1">
@@ -405,6 +429,19 @@ const OrganizerDashboard = () => {
                     <option value="MBA">MBA</option>
                     <option value="OTHER">OTHER</option>
                   </select>
+                </div>
+              )}
+
+              {formData.level === 'club' && (
+                <div>
+                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Club Name</label>
+                  <input
+                    required
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition"
+                    value={formData.clubName}
+                    onChange={(e) => setFormData({ ...formData, clubName: e.target.value })}
+                    placeholder="Enter club name"
+                  />
                 </div>
               )}
 

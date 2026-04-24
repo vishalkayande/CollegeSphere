@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import { Building2, Users, Calendar, ShieldAlert, Trash2, CheckCircle, XCircle, Trophy, ShieldCheck, LayoutGrid, Download } from 'lucide-react';
-import Leaderboard from './Leaderboard';
+import { Building2, Users, Calendar, ShieldAlert, Trash2, CheckCircle, XCircle, ShieldCheck, LayoutGrid, Download } from 'lucide-react';
 
 const AdminDashboard = () => {
   const { user } = useAuth();
@@ -153,17 +152,6 @@ const AdminDashboard = () => {
           Events
         </button>
         <button
-          onClick={() => setActiveTab('leaderboard')}
-          className={`flex items-center gap-2 px-10 py-4 rounded-xl font-black text-lg transition-all ${
-            activeTab === 'leaderboard' 
-              ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' 
-              : 'text-[#003B5C] hover:bg-gray-50 hover:text-blue-600'
-          }`}
-        >
-          <Trophy className="w-6 h-6" />
-          Leaderboard
-        </button>
-        <button
           onClick={() => setActiveTab('admin')}
           className={`flex items-center gap-2 px-10 py-4 rounded-xl font-black text-lg transition-all ${
             activeTab === 'admin' 
@@ -185,7 +173,7 @@ const AdminDashboard = () => {
           </h1>
           <p className="text-xl text-gray-500 max-w-2xl text-center leading-relaxed font-medium">
             Your centralized command center for academic excellence. 
-            Select a module from above to manage events, track rankings, or access the admin console.
+            Select a module from above to manage events or access the admin console.
           </p>
         </div>
       )}
@@ -246,12 +234,6 @@ const AdminDashboard = () => {
               </div>
             ))}
           </div>
-        </div>
-      )}
-
-      {activeTab === 'leaderboard' && (
-        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <Leaderboard />
         </div>
       )}
 

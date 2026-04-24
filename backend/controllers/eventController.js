@@ -5,10 +5,14 @@ const User = require('../models/userModel');
 // @route   POST /api/events
 // @access  Private (Organizer)
 const createEvent = async (req, res) => {
-  const { name, level, department, category, description, url, upiId, photo, date, time, registrationLimit } = req.body;
+  const { name, level, department, clubName, category, description, url, upiId, photo, date, time, registrationLimit } = req.body;
 
   if (!name || !level || !description || !date || !time) {
     return res.status(400).json({ message: 'Please add all required fields' });
+  }
+
+  if (level === 'club' && !clubName) {
+    return res.status(400).json({ message: 'Please add club name for club level event' });
   }
 
   const event = await Event.create({
@@ -17,6 +21,7 @@ const createEvent = async (req, res) => {
     name,
     level,
     department: level === 'department' ? department : 'ALL',
+    clubName: level === 'club' ? clubName : undefined,
     category,
     description,
     url,
@@ -152,6 +157,28 @@ const togglePauseEvent = async (req, res) => {
   res.json(event);
 };
 
+// @desc    Update event winners
+// @route   PUT /api/events/:id/winners
+// @access  Private (Organizer)
+const updateWinners = async (req, res) => {
+  const { winners } = req.body;
+  const event = await Event.findById(req.params.id);
+
+  if (!event) {
+    return res.status(404).json({ message: 'Event not found' });
+  }
+
+  // Check if authorized
+  if (event.organizer.toString() !== req.user._id.toString()) {
+    return res.status(403).json({ message: 'Not authorized' });
+  }
+
+  event.winners = winners.filter(w => w.name && w.name.trim() !== '');
+  await event.save();
+
+  res.json(event);
+};
+
 module.exports = {
   createEvent,
   getEvents,
@@ -159,4 +186,5 @@ module.exports = {
   getRegistrations,
   deleteEvent,
   togglePauseEvent,
+  updateWinners,
 };

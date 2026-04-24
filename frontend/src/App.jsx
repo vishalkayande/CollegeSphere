@@ -7,7 +7,6 @@ import ResetPassword from './pages/ResetPassword';
 import Home from './pages/Home';
 import Dashboard from './pages/Dashboard';
 import Navbar from './components/Navbar';
-import Leaderboard from './pages/Leaderboard';
 import AdminDashboard from './pages/AdminDashboard';
 
 const PrivateRoute = ({ children }) => {
@@ -28,7 +27,6 @@ function AppContent() {
           <Route path="/forgot-password" element={!user ? <ForgotPassword /> : <Navigate to="/" />} />
           <Route path="/reset-password/:token" element={!user ? <ResetPassword /> : <Navigate to="/" />} />
           <Route path="/" element={user ? <Dashboard /> : <Home />} />
-          <Route path="/leaderboard" element={<PrivateRoute><Leaderboard /></PrivateRoute>} />
           <Route path="/admin" element={<PrivateRoute><AdminDashboard /></PrivateRoute>} />
         </Routes>
       </div>

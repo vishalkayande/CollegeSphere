@@ -25,9 +25,6 @@ const Navbar = () => {
           {user?.role !== 'admin' && (
             <>
               <Link to="/" className="text-[#003B5C] hover:text-blue-600 text-lg font-black transition">Events</Link>
-              <Link to="/leaderboard" className="text-[#003B5C] hover:text-blue-600 text-lg font-black transition flex items-center gap-2">
-                <Trophy className="w-6 h-6" /> Leaderboard
-              </Link>
             </>
           )}
         </div>

@@ -67,7 +67,7 @@ const StudentDashboard = () => {
   };
 
   const isExpired = (event) => {
-    const deadline = new Date(`${event.date}T${event.time}`);
+    const deadline = new Date(`${event.date.split('T')[0]}T${event.time}`);
     return new Date() > deadline;
   };
 
@@ -158,6 +158,11 @@ const StudentDashboard = () => {
                 <div className="absolute top-4 right-4 bg-white/90 backdrop-blur px-3 py-1 rounded-full text-xs font-bold text-blue-600 uppercase tracking-wider">
                   {event.category || 'Event'}
                 </div>
+                {event.level === 'club' && event.clubName && (
+                  <div className="absolute top-4 left-4 bg-purple-100/90 backdrop-blur px-3 py-1 rounded-full text-xs font-bold text-purple-600 uppercase tracking-wider">
+                    {event.clubName}
+                  </div>
+                )}
               </div>
 
               {/* Event Content */}
@@ -235,7 +240,7 @@ const StudentDashboard = () => {
                   {isRegistered(event) 
                     ? 'Registered ✓' 
                     : (isExpired(event)
-                        ? 'Event Registrations Expired'
+                        ? 'Registrations Closed'
                         : (event.isPaused
                             ? 'Registration Paused'
                             : (event.registrationLimit > 0 && event.registrations.length >= event.registrationLimit
