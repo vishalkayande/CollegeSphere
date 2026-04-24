@@ -24,15 +24,17 @@ CollegeSphere is a comprehensive academic event management platform designed to 
 - **Data Export**: Download registration lists in CSV format for offline processing.
 - **Full Control**: Ability to moderate events and users across all colleges.
 
-## 🛡️ Security Features
+### 🔐 Security & Account Features
 - **Robust Authentication**: JWT-based secure login system.
+- **OTP Password Reset**: 6-digit OTP verification system via Brevo SMTP.
 - **Strong Password Policy**: Enforced complexity requirements (8+ chars, Uppercase, Lowercase, Number, Special Symbol).
 - **Input Validation**: Real-time single-line feedback for better user experience.
 
 ## 🛠️ Tech Stack
 
 - **Frontend**: React.js, Vite, Tailwind CSS, Lucide React, Framer Motion
-- **Backend**: Node.js, Express.js
+- **Backend**: Node.js, Express.js, Nodemailer
+- **Email Service**: Brevo (formerly Sendinblue) SMTP
 - **Database**: MongoDB (Mongoose)
 - **Real-time**: Socket.io for instant updates
 - **Auth**: JSON Web Tokens (JWT) & Bcryptjs
@@ -62,6 +64,14 @@ MONGODB_URI=your_mongodb_connection_string
 JWT_SECRET=your_secret_key
 NODE_ENV=development
 FRONTEND_URL=http://localhost:5173
+
+# Brevo SMTP Configuration
+SMTP_HOST=smtp-relay.brevo.com
+SMTP_PORT=587
+SMTP_USER=your_brevo_smtp_user
+SMTP_PASS=your_brevo_smtp_password
+FROM_NAME=CollegeSphere
+FROM_EMAIL=your_verified_sender_email
 ```
 
 ### 3️⃣ Frontend Setup
