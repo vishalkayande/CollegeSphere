@@ -64,6 +64,25 @@ const StudentDashboard = () => {
     }
   };
 
+  const handleUnenroll = async (eventId) => {
+    if (!window.confirm('Are you want to unregister the event?')) {
+      return;
+    }
+
+    try {
+      const config = {
+        headers: { Authorization: `Bearer ${user.token}` }
+      };
+      
+      await axios.post(`${API_URL}/api/events/${eventId}/unenroll`, {}, config);
+      alert('Successfully unregistered from the event!');
+      fetchEvents(); // Refresh events to show "Register" status again
+    } catch (err) {
+      console.error('Unenrollment Error:', err);
+      alert(err.response?.data?.message || 'Failed to unregister from event');
+    }
+  };
+
   const isRegistered = (event) => {
     return event.registrations?.some(reg => reg.student === user._id || reg.student?._id === user._id);
   };
@@ -229,6 +248,16 @@ const StudentDashboard = () => {
                     <p className="text-xs text-gray-500">{event.organizer?.organizerDetails?.mobileNo || 'Contact N/A'}</p>
                   </div>
                 </div>
+
+                {/* Unregister Button */}
+                {isRegistered(event) && !isExpired(event) && (
+                  <button
+                    onClick={() => handleUnenroll(event._id)}
+                    className="mb-3 w-full flex items-center justify-center gap-2 font-black py-3 rounded-xl transition-all duration-300 bg-red-50 text-red-600 hover:bg-red-600 hover:text-white border border-red-100"
+                  >
+                    Unregister
+                  </button>
+                )}
 
                 <button
                   onClick={() => {

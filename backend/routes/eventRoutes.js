@@ -8,6 +8,7 @@ const {
   deleteEvent,
   togglePauseEvent,
   updateWinners,
+  unenrollEvent,
 } = require('../controllers/eventController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
@@ -21,6 +22,7 @@ router.route('/:id')
 router.put('/:id/pause', protect, authorize('organizer'), togglePauseEvent);
 router.put('/:id/winners', protect, authorize('organizer'), updateWinners);
 router.post('/:id/enroll', protect, authorize('student'), enrollEvent);
+router.post('/:id/unenroll', protect, authorize('student'), unenrollEvent);
 router.get('/:id/registrations', protect, authorize('organizer', 'admin'), getRegistrations);
 
 module.exports = router;

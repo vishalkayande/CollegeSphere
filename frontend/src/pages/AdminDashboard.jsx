@@ -24,8 +24,30 @@ const AdminDashboard = () => {
   const [studentFilter, setStudentFilter] = useState(null);
   const [eventFilter, setEventFilter] = useState(null);
   const [showLeaderboardModal, setShowLeaderboardModal] = useState(false);
+  const [showParticipantsModal, setShowParticipantsModal] = useState(false);
   const [selectedEventForLeaderboard, setSelectedEventForLeaderboard] = useState(null);
+  const [selectedEventForParticipants, setSelectedEventForParticipants] = useState(null);
+  const [participants, setParticipants] = useState([]);
+  const [loadingParticipants, setLoadingParticipants] = useState(false);
   const API_URL = 'http://localhost:5002'; // Define API URL for consistency
+
+  const handleViewParticipants = async (event) => {
+    setSelectedEventForParticipants(event);
+    setShowParticipantsModal(true);
+    setLoadingParticipants(true);
+    try {
+      const config = {
+        headers: { Authorization: `Bearer ${user.token}` }
+      };
+      const res = await axios.get(`${API_URL}/api/events/${event._id}/registrations`, config);
+      setParticipants(res.data);
+    } catch (err) {
+      console.error('Error fetching participants:', err);
+      alert('Failed to load participants');
+    } finally {
+      setLoadingParticipants(false);
+    }
+  };
 
   const isExpired = (event) => {
     const deadline = new Date(`${event.date.split('T')[0]}T${event.time}`);
@@ -231,14 +253,21 @@ const AdminDashboard = () => {
                         </button>
                       )}
                       <button 
-                        onClick={() => handleDownloadCSV(event._id, event.name)}
-                        className="p-2 text-gray-400 hover:text-blue-600 transition"
-                        title="Download Registrations CSV"
-                      >
-                        <Download className="w-5 h-5" />
-                      </button>
-                      <button 
-                        onClick={() => handleDeleteEvent(event._id)}
+                          onClick={() => handleDownloadCSV(event._id, event.name)}
+                          className="p-2 text-gray-400 hover:text-blue-600 transition"
+                          title="Download Registrations CSV"
+                        >
+                          <Download className="w-5 h-5" />
+                        </button>
+                        <button 
+                          onClick={() => handleViewParticipants(event)}
+                          className="p-2 text-gray-400 hover:text-blue-600 transition"
+                          title="View Participants"
+                        >
+                          <Users className="w-5 h-5" />
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteEvent(event._id)}
                         className="p-2 text-gray-400 hover:text-red-500 transition"
                         title="Delete Event"
                       >
@@ -467,6 +496,13 @@ const AdminDashboard = () => {
                                       <Trophy className="w-4 h-4" />
                                     </button>
                                   )}
+                                  <button
+                                    onClick={() => handleViewParticipants(event)}
+                                    className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                                    title="View Participants"
+                                  >
+                                    <Users className="w-4 h-4" />
+                                  </button>
                                   <button 
                                     onClick={() => handleDeleteEvent(event._id)}
                                     className="p-1.5 text-red-500 hover:bg-red-100 rounded-lg transition"
@@ -568,6 +604,71 @@ const AdminDashboard = () => {
             >
               Close Leaderboard
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Participants Modal */}
+      {showParticipantsModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
+          <div className="bg-white rounded-[2.5rem] p-8 w-full max-w-2xl shadow-2xl animate-in fade-in zoom-in duration-300">
+            <div className="flex justify-between items-center mb-8">
+              <div>
+                <h2 className="text-3xl font-black text-gray-900 tracking-tighter">Event Participants</h2>
+                <p className="text-sm text-gray-500 font-medium">{selectedEventForParticipants?.name}</p>
+              </div>
+              <button 
+                onClick={() => setShowParticipantsModal(false)} 
+                className="text-gray-400 hover:text-gray-600 transition p-2 hover:bg-gray-100 rounded-full"
+              >
+                <Plus className="w-6 h-6 rotate-45" />
+              </button>
+            </div>
+
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+              {loadingParticipants ? (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                  <p className="text-gray-500 mt-4 font-medium">Loading participants...</p>
+                </div>
+              ) : participants.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider font-bold">
+                      <tr>
+                        <th className="px-4 py-3">Student Name</th>
+                        <th className="px-4 py-3">Roll No</th>
+                        <th className="px-4 py-3">Branch</th>
+                        <th className="px-4 py-3">Class</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {participants.map((reg) => (
+                        <tr key={reg._id} className="hover:bg-gray-50 transition">
+                          <td className="px-4 py-3 font-bold text-gray-900">{reg.student?.name}</td>
+                          <td className="px-4 py-3 text-sm text-gray-600 font-medium">{reg.student?.studentDetails?.rollNo || 'N/A'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-600 font-medium">{reg.student?.studentDetails?.branch || 'N/A'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-600 font-medium">{reg.student?.studentDetails?.class || 'N/A'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <p className="text-gray-500 font-medium">No participants registered for this event yet.</p>
+                </div>
+              )}
+            </div>
+            
+            <div className="mt-8 flex justify-end">
+              <button
+                onClick={() => setShowParticipantsModal(false)}
+                className="px-8 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-black rounded-xl transition"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

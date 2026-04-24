@@ -99,6 +99,37 @@ const enrollEvent = async (req, res) => {
   res.status(201).json({ message: 'Successfully registered' });
 };
 
+// @desc    Unenroll from an event
+// @route   POST /api/events/:id/unenroll
+// @access  Private (Student)
+const unenrollEvent = async (req, res) => {
+  const event = await Event.findById(req.params.id);
+
+  if (!event) {
+    return res.status(404).json({ message: 'Event not found' });
+  }
+
+  // Check deadline
+  const deadline = new Date(`${event.date.toISOString().split('T')[0]}T${event.time}`);
+  if (new Date() > deadline) {
+    return res.status(400).json({ message: 'Cannot unregister from expired event' });
+  }
+
+  // Check if registered
+  const registrationIndex = event.registrations.findIndex(
+    (reg) => reg.student.toString() === req.user._id.toString()
+  );
+
+  if (registrationIndex === -1) {
+    return res.status(400).json({ message: 'Not registered for this event' });
+  }
+
+  event.registrations.splice(registrationIndex, 1);
+
+  await event.save();
+  res.json({ message: 'Successfully unregistered' });
+};
+
 // @desc    Get event registrations (CSV export logic would go here)
 // @route   GET /api/events/:id/registrations
 // @access  Private (Organizer/Admin)
@@ -187,4 +218,5 @@ module.exports = {
   deleteEvent,
   togglePauseEvent,
   updateWinners,
+  unenrollEvent,
 };
