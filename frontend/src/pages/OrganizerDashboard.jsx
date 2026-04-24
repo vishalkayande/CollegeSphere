@@ -1,11 +1,23 @@
 import { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import { Plus, Users, Download, Trash2, ExternalLink, Calendar as CalendarIcon, Clock, Tag, Pause, Play } from 'lucide-react';
+import { Plus, Users, Download, Trash2, ExternalLink, Calendar as CalendarIcon, Clock, Tag, Pause, Play, Trophy, LayoutGrid } from 'lucide-react';
 
 const OrganizerDashboard = () => {
   const { user } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [events, setEvents] = useState([]);
+  const [activeTab, setActiveTab] = useState(null); // null = welcome state
+
+  useEffect(() => {
+    if (location.state?.reset) {
+      setActiveTab(null);
+      // Clear location state
+      navigate('/', { replace: true, state: {} });
+    }
+  }, [location, navigate]);
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -32,10 +44,95 @@ const OrganizerDashboard = () => {
     { name: '', position: 5 },
   ]);
   const [isSeeWinnersMode, setIsSeeWinnersMode] = useState(false);
+  const [registeredStudents, setRegisteredStudents] = useState([]);
+  const [loadingRegistrations, setLoadingRegistrations] = useState(false);
 
   const isExpired = (event) => {
     const deadline = new Date(`${event.date.split('T')[0]}T${event.time}`);
     return new Date() > deadline;
+  };
+
+  const handleAnnounceWinners = async (event) => {
+    setSelectedEventForWinners(event);
+    setIsSeeWinnersMode(false);
+    setLoadingRegistrations(true);
+    
+    try {
+      const config = {
+        headers: { Authorization: `Bearer ${user.token}` }
+      };
+      const res = await axios.get(`${API_URL}/api/events/${event._id}/registrations`, config);
+      const sortedStudents = res.data
+        .map(reg => ({
+          name: reg.student?.name || 'Unknown',
+          studentId: reg.student?._id,
+          rollNo: reg.student?.studentDetails?.rollNo,
+          class: reg.student?.studentDetails?.class,
+          branch: reg.student?.studentDetails?.branch
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+      
+      setRegisteredStudents(sortedStudents);
+      
+      const existingWinners = event.winners || [];
+      const entries = [1, 2, 3, 4, 5].map(pos => {
+        const winner = existingWinners.find(w => w.position === pos);
+        return { 
+          name: winner ? winner.name : '', 
+          position: pos,
+          rollNo: winner ? winner.rollNo : '',
+          class: winner ? winner.class : '',
+          branch: winner ? winner.branch : ''
+        };
+      });
+      setWinnerEntries(entries);
+      setShowWinnersModal(true);
+    } catch (err) {
+      console.error('Error fetching registrations:', err);
+      alert('Failed to load registered students');
+    } finally {
+      setLoadingRegistrations(false);
+    }
+  };
+
+  const handleSeeWinners = (event) => {
+    setSelectedEventForWinners(event);
+    setIsSeeWinnersMode(true);
+    setShowWinnersModal(true);
+  };
+
+  const submitWinners = async (e) => {
+    e.preventDefault();
+    try {
+      const config = {
+        headers: { Authorization: `Bearer ${user.token}` }
+      };
+
+      // Enrich winners with data from registeredStudents state
+      const enrichedWinners = winnerEntries.map(entry => {
+        if (!entry.name || entry.name.trim() === '') return entry;
+        
+        const student = registeredStudents.find(s => s.name === entry.name);
+
+        if (student) {
+          return {
+            ...entry,
+            rollNo: student.rollNo || entry.rollNo,
+            class: student.class || entry.class,
+            branch: student.branch || entry.branch
+          };
+        }
+        return entry;
+      });
+
+      await axios.put(`${API_URL}/api/events/${selectedEventForWinners._id}/winners`, { winners: enrichedWinners }, config);
+      setShowWinnersModal(false);
+      fetchAllEvents();
+      alert('Winners updated successfully!');
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.message || 'Failed to update winners');
+    }
   };
 
   const handleFileChange = (e) => {
@@ -194,187 +291,242 @@ const OrganizerDashboard = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
-        <div className="flex items-center gap-6">
-          <img src="/logo.png" alt="CollegeSphere Logo" className="h-24 w-auto drop-shadow-md" />
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Organizer Dashboard</h1>
-            <p className="text-gray-500 mt-1 font-medium">Manage your events and registrations for {user.collegeName}</p>
-          </div>
-        </div>
+      {/* Navigation Tabs */}
+      <div className="flex justify-center gap-6 mb-12 bg-white p-2.5 rounded-2xl shadow-sm border border-gray-100 w-fit mx-auto">
         <button
-          onClick={() => setShowModal(true)}
-          className="flex items-center gap-3 bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-xl font-black text-lg shadow-lg shadow-blue-200 transition"
+          onClick={() => setActiveTab('dashboard')}
+          className={`flex items-center gap-2 px-10 py-4 rounded-xl font-black text-lg transition-all ${
+            activeTab === 'dashboard' 
+              ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' 
+              : 'text-[#003B5C] hover:bg-gray-50 hover:text-blue-600'
+          }`}
         >
-          <Plus className="w-5 h-5" />
-          Create Event
+          <LayoutGrid className="w-6 h-6" />
+          Dashboard
         </button>
       </div>
 
-      {/* Stats Section */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
-          <div className="bg-blue-50 w-12 h-12 rounded-2xl flex items-center justify-center mb-4 text-blue-600">
-            <CalendarIcon className="w-6 h-6" />
-          </div>
-          <p className="text-gray-500 text-sm font-medium">Total Events</p>
-          <h2 className="text-3xl font-bold text-gray-900">{events.length}</h2>
+      {/* Conditional Content */}
+      {!activeTab && (
+        <div className="flex flex-col items-center justify-center py-20 animate-in fade-in zoom-in duration-700">
+          <img src="/logo.png" alt="CollegeSphere Logo" className="w-96 h-auto mb-8 drop-shadow-2xl hover:scale-105 transition-transform duration-500" />
+          <h1 className="text-6xl font-black text-gray-900 tracking-tighter mb-4">
+            Welcome to <span className="text-[#003B5C]">College</span><span className="text-[#00B5AD]">Sphere</span>
+          </h1>
+          <p className="text-xl text-gray-500 max-w-2xl text-center leading-relaxed font-medium">
+            Your centralized command center for academic excellence. 
+            Select a module from above to manage events or access the organizer console.
+          </p>
         </div>
-        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
-          <div className="bg-green-50 w-12 h-12 rounded-2xl flex items-center justify-center mb-4 text-green-600">
-            <CalendarIcon className="w-6 h-6" />
-          </div>
-          <p className="text-gray-500 text-sm font-medium">Active Events</p>
-          <h2 className="text-3xl font-bold text-gray-900">
-            {events.filter(e => !isExpired(e)).length}
-          </h2>
-        </div>
-        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
-          <div className="bg-red-50 w-12 h-12 rounded-2xl flex items-center justify-center mb-4 text-red-600">
-            <CalendarIcon className="w-6 h-6" />
-          </div>
-          <p className="text-gray-500 text-sm font-medium">Expired Events</p>
-          <h2 className="text-3xl font-bold text-gray-900">
-            {events.filter(e => isExpired(e)).length}
-          </h2>
-        </div>
-      </div>
+      )}
 
-      {/* Event List */}
-      <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-gray-50">
-          <h2 className="text-xl font-bold text-gray-900">Events</h2>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider font-bold">
-              <tr>
-                <th className="px-6 py-4">Event Name</th>
-                <th className="px-6 py-4">Organizer</th>
-                <th className="px-6 py-4">Date & Time</th>
-                <th className="px-6 py-4">Level & Category</th>
-                <th className="px-6 py-4">Registrations</th>
-                <th className="px-6 py-4">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {events.map((event) => (
-                <tr key={event._id} className="hover:bg-gray-50 transition">
-                  <td className="px-6 py-4">
-                    <div className="font-bold text-gray-900">{event.name}</div>
-                    <div className="text-xs text-gray-400 truncate max-w-[200px]">{event.description}</div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm font-medium text-gray-700">{event.organizer?.name}</div>
-                    <div className="text-[10px] text-gray-400">{event.organizer?.email}</div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className={`flex items-center gap-2 text-sm ${isExpired(event) ? 'text-red-500 font-black animate-pulse' : 'text-gray-600 font-medium'}`}>
-                      <CalendarIcon className={`w-4 h-4 ${isExpired(event) ? 'text-red-500' : 'text-blue-500'}`} />
-                      {new Date(event.date).toLocaleDateString('en-GB')}
-                    </div>
-                    <div className={`flex items-center gap-2 text-sm mt-1 ${isExpired(event) ? 'text-red-500 font-black' : 'text-gray-600 font-medium'}`}>
-                      <Clock className={`w-4 h-4 ${isExpired(event) ? 'text-red-500' : 'text-yellow-500'}`} />
-                      {event.time}
-                      {isExpired(event) && <span className="ml-1 text-[10px] bg-red-100 px-1.5 py-0.5 rounded text-red-600 uppercase tracking-tighter">Expired</span>}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="bg-blue-50 text-blue-600 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide">
-                      {event.level}
-                    </span>
-                    <div className="mt-1 ml-1 flex flex-col gap-0.5">
-                      {event.level === 'department' && (
-                        <div className="text-[10px] font-black text-blue-400 tracking-tighter uppercase">
-                          {event.department}
+      {activeTab === 'dashboard' && (
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
+            <div className="flex items-center gap-6">
+              <img src="/logo.png" alt="CollegeSphere Logo" className="h-24 w-auto drop-shadow-md" />
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">Organizer Dashboard</h1>
+                <p className="text-gray-500 mt-1 font-medium">Manage your events and registrations for {user.collegeName}</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowModal(true)}
+              className="flex items-center gap-3 bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-xl font-black text-lg shadow-lg shadow-blue-200 transition"
+            >
+              <Plus className="w-5 h-5" />
+              Create Event
+            </button>
+          </div>
+
+          {/* Stats Section */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+            <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
+              <div className="bg-blue-50 w-12 h-12 rounded-2xl flex items-center justify-center mb-4 text-blue-600">
+                <CalendarIcon className="w-6 h-6" />
+              </div>
+              <p className="text-gray-500 text-sm font-medium">Total Events</p>
+              <h2 className="text-3xl font-bold text-gray-900">{events.length}</h2>
+            </div>
+            <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
+              <div className="bg-green-50 w-12 h-12 rounded-2xl flex items-center justify-center mb-4 text-green-600">
+                <CalendarIcon className="w-6 h-6" />
+              </div>
+              <p className="text-gray-500 text-sm font-medium">Active Events</p>
+              <h2 className="text-3xl font-bold text-gray-900">
+                {events.filter(e => !isExpired(e)).length}
+              </h2>
+            </div>
+            <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
+              <div className="bg-red-50 w-12 h-12 rounded-2xl flex items-center justify-center mb-4 text-red-600">
+                <CalendarIcon className="w-6 h-6" />
+              </div>
+              <p className="text-gray-500 text-sm font-medium">Expired Events</p>
+              <h2 className="text-3xl font-bold text-gray-900">
+                {events.filter(e => isExpired(e)).length}
+              </h2>
+            </div>
+          </div>
+
+          {/* Event List */}
+          <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="p-6 border-b border-gray-50">
+              <h2 className="text-xl font-bold text-gray-900">Events</h2>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider font-bold">
+                  <tr>
+                    <th className="px-6 py-4">Event Name</th>
+                    <th className="px-6 py-4">Organizer</th>
+                    <th className="px-6 py-4">Date & Time</th>
+                    <th className="px-6 py-4">Level & Category</th>
+                    <th className="px-6 py-4">Registrations</th>
+                    <th className="px-6 py-4">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {events.map((event) => (
+                    <tr key={event._id} className="hover:bg-gray-50 transition group">
+                      <td className="px-6 py-4">
+                        <div className="text-left">
+                          <div className="font-bold text-gray-900">
+                            {event.name}
+                          </div>
+                          <div className="text-xs text-gray-400 truncate max-w-[200px]">{event.description}</div>
                         </div>
-                      )}
-                      {event.level === 'club' && event.clubName && (
-                        <div className="text-[10px] font-black text-purple-500 tracking-tighter uppercase">
-                          {event.clubName}
-                        </div>
-                      )}
-                      {event.category && (
-                        <div className="text-[9px] font-medium text-gray-400 tracking-tight italic">
-                          {event.category}
-                        </div>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex flex-col gap-1">
-                      <div className={`flex items-center gap-2 font-black ${
-                        event.registrationLimit > 0 && event.registrations.length >= event.registrationLimit 
-                          ? 'text-red-600' 
-                          : 'text-gray-700'
-                      }`}>
-                        <Users className={`w-4 h-4 ${
-                          event.registrationLimit > 0 && event.registrations.length >= event.registrationLimit 
-                            ? 'text-red-500' 
-                            : 'text-gray-400'
-                        }`} />
-                        <span className="text-sm">
-                          {event.registrations.length} / {event.registrationLimit > 0 ? event.registrationLimit : '∞'}
-                        </span>
-                      </div>
-                      <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                        <div 
-                          className={`h-full transition-all duration-500 ${
-                            event.registrationLimit > 0 && (event.registrations.length / event.registrationLimit) >= 1 ? 'bg-red-500' : 'bg-blue-500'
-                          }`}
-                          style={{ 
-                            width: event.registrationLimit > 0 
-                              ? `${Math.min((event.registrations.length / event.registrationLimit) * 100, 100)}%` 
-                              : '0%' 
-                          }}
-                        ></div>
-                      </div>
-                      {event.registrationLimit > 0 && event.registrations.length >= event.registrationLimit && (
-                        <span className="text-[9px] text-red-500 font-bold uppercase tracking-tighter">Full Capacity</span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      {event.organizer?._id === user?._id && (
-                        <div className="flex items-center gap-1">
-                          {!isExpired(event) && (
+                        {isExpired(event) && (
+                          <div className="flex gap-2 mt-2">
                             <button 
-                              onClick={() => handleTogglePause(event._id)}
-                              className={`p-2 rounded-lg transition ${
-                                event.isPaused 
-                                  ? 'text-green-600 bg-green-50 hover:bg-green-100' 
-                                  : 'text-amber-600 bg-amber-50 hover:bg-amber-100'
-                              }`}
-                              title={event.isPaused ? "Resume Registrations" : "Pause Registrations"}
+                              onClick={() => handleAnnounceWinners(event)}
+                              className="text-[10px] font-black uppercase tracking-tighter text-blue-500 hover:text-blue-700 bg-blue-50 px-2 py-0.5 rounded transition"
                             >
-                              {event.isPaused ? <Play className="w-5 h-5" /> : <Pause className="w-5 h-5" />}
+                              Announce Winners
                             </button>
-                          )}
-                          <button 
-                            onClick={() => handleDownloadCSV(event._id, event.name)}
-                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition" 
-                            title="Download Registrations CSV"
-                          >
-                            <Download className="w-5 h-5" />
-                          </button>
-                          <button 
-                            onClick={() => handleDelete(event._id)}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition" 
-                            title="Delete Event"
-                          >
-                            <Trash2 className="w-5 h-5" />
-                          </button>
+                            {event.winners && event.winners.length > 0 && (
+                              <button 
+                                onClick={() => handleSeeWinners(event)}
+                                className="text-[10px] font-black uppercase tracking-tighter text-purple-500 hover:text-purple-700 bg-purple-50 px-2 py-0.5 rounded transition"
+                              >
+                                See Winners
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="text-sm font-medium text-gray-700">{event.organizer?.name}</div>
+                        <div className="text-[10px] text-gray-400">{event.organizer?.email}</div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className={`flex items-center gap-2 text-sm ${isExpired(event) ? 'text-red-500 font-black animate-pulse' : 'text-gray-600 font-medium'}`}>
+                          <CalendarIcon className={`w-4 h-4 ${isExpired(event) ? 'text-red-500' : 'text-blue-500'}`} />
+                          {new Date(event.date).toLocaleDateString('en-GB')}
                         </div>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                        <div className={`flex items-center gap-2 text-sm mt-1 ${isExpired(event) ? 'text-red-500 font-black' : 'text-gray-600 font-medium'}`}>
+                          <Clock className={`w-4 h-4 ${isExpired(event) ? 'text-red-500' : 'text-yellow-500'}`} />
+                          {event.time}
+                          {isExpired(event) && <span className="ml-1 text-[10px] bg-red-100 px-1.5 py-0.5 rounded text-red-600 uppercase tracking-tighter">Expired</span>}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="bg-blue-50 text-blue-600 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide">
+                          {event.level}
+                        </span>
+                        <div className="mt-1 ml-1 flex flex-col gap-0.5">
+                          {event.level === 'department' && (
+                            <div className="text-[10px] font-black text-blue-400 tracking-tighter uppercase">
+                              {event.department}
+                            </div>
+                          )}
+                          {event.level === 'club' && event.clubName && (
+                            <div className="text-[10px] font-black text-purple-500 tracking-tighter uppercase">
+                              {event.clubName}
+                            </div>
+                          )}
+                          {event.category && (
+                            <div className="text-[9px] font-medium text-gray-400 tracking-tight italic">
+                              {event.category}
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col gap-1">
+                          <div className={`flex items-center gap-2 font-black ${
+                            event.registrationLimit > 0 && event.registrations.length >= event.registrationLimit 
+                              ? 'text-red-600' 
+                              : 'text-gray-700'
+                          }`}>
+                            <Users className={`w-4 h-4 ${
+                              event.registrationLimit > 0 && event.registrations.length >= event.registrationLimit 
+                                ? 'text-red-500' 
+                                : 'text-gray-400'
+                            }`} />
+                            <span className="text-sm">
+                              {event.registrations.length} / {event.registrationLimit > 0 ? event.registrationLimit : '∞'}
+                            </span>
+                          </div>
+                          <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                            <div 
+                              className={`h-full transition-all duration-500 ${
+                                event.registrationLimit > 0 && (event.registrations.length / event.registrationLimit) >= 1 ? 'bg-red-500' : 'bg-blue-500'
+                              }`}
+                              style={{ 
+                                width: event.registrationLimit > 0 
+                                  ? `${Math.min((event.registrations.length / event.registrationLimit) * 100, 100)}%` 
+                                  : '0%' 
+                              }}
+                            ></div>
+                          </div>
+                          {event.registrationLimit > 0 && event.registrations.length >= event.registrationLimit && (
+                            <span className="text-[9px] text-red-500 font-bold uppercase tracking-tighter">Full Capacity</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          {event.organizer?._id === user?._id && (
+                            <div className="flex items-center gap-1">
+                              {!isExpired(event) && (
+                                <button 
+                                  onClick={() => handleTogglePause(event._id)}
+                                  className={`p-2 rounded-lg transition ${
+                                    event.isPaused 
+                                      ? 'text-green-600 bg-green-50 hover:bg-green-100' 
+                                      : 'text-amber-600 bg-amber-50 hover:bg-amber-100'
+                                  }`}
+                                  title={event.isPaused ? "Resume Registrations" : "Pause Registrations"}
+                                >
+                                  {event.isPaused ? <Play className="w-5 h-5" /> : <Pause className="w-5 h-5" />}
+                                </button>
+                              )}
+                              <button 
+                                onClick={() => handleDownloadCSV(event._id, event.name)}
+                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition" 
+                                title="Download Registrations CSV"
+                              >
+                                <Download className="w-5 h-5" />
+                              </button>
+                              <button 
+                                onClick={() => handleDelete(event._id)}
+                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition" 
+                                title="Delete Event"
+                              >
+                                <Trash2 className="w-5 h-5" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Create Event Modal */}
       {showModal && (
@@ -559,6 +711,114 @@ const OrganizerDashboard = () => {
                 Launch Event
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Winners Modal */}
+      {showWinnersModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
+          <div className="bg-white rounded-[2.5rem] p-8 w-full max-w-lg shadow-2xl animate-in fade-in zoom-in duration-300">
+            <div className="flex justify-between items-center mb-8">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">
+                  {isSeeWinnersMode ? 'Event Winners' : 'Announce Winners'}
+                </h2>
+                <p className="text-sm text-gray-500 font-medium">{selectedEventForWinners?.name}</p>
+              </div>
+              <button 
+                onClick={() => setShowWinnersModal(false)} 
+                className="text-gray-400 hover:text-gray-600 transition"
+              >
+                <Plus className="w-6 h-6 rotate-45" />
+              </button>
+            </div>
+
+            {isSeeWinnersMode ? (
+              <div className="space-y-4">
+                {selectedEventForWinners?.winners && selectedEventForWinners.winners.length > 0 ? (
+                  [...selectedEventForWinners.winners].sort((a,b) => a.position - b.position).map((winner) => (
+                    <div key={winner.position} className="flex items-center gap-4 p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                      <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center font-black">
+                        {winner.position}
+                      </div>
+                      <div className="flex-1">
+                        <div className="font-bold text-gray-900">{winner.name}</div>
+                        <div className="flex gap-3 mt-1">
+                          <span className="text-[9px] font-bold text-gray-400 uppercase">Roll: <span className="text-gray-600">{winner.rollNo || 'N/A'}</span></span>
+                          <span className="text-[9px] font-bold text-gray-400 uppercase">Class: <span className="text-gray-600">{winner.class || 'N/A'}</span></span>
+                          {winner.branch && <span className="text-[9px] font-bold text-gray-400 uppercase">Branch: <span className="text-gray-600">{winner.branch}</span></span>}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-10">
+                    <Trophy className="w-12 h-12 text-gray-200 mx-auto mb-3" />
+                    <p className="text-gray-400 font-medium">No winners announced yet.</p>
+                  </div>
+                )}
+                <button
+                  onClick={() => setIsSeeWinnersMode(false)}
+                  className="w-full py-4 bg-blue-600 text-white rounded-2xl font-black text-lg shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all mt-6"
+                >
+                  Edit Winners
+                </button>
+              </div>
+            ) : loadingRegistrations ? (
+              <div className="flex flex-col items-center justify-center py-20">
+                <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+                <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">Loading registered students...</p>
+              </div>
+            ) : (
+              <form onSubmit={submitWinners} className="space-y-4">
+                {winnerEntries.map((entry, index) => (
+                  <div key={index} className="flex items-center gap-4">
+                    <div className="w-24">
+                      <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 ml-1">Pos</label>
+                      <select
+                        className="w-full px-3 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition font-bold"
+                        value={entry.position}
+                        onChange={(e) => {
+                          const newEntries = [...winnerEntries];
+                          newEntries[index].position = parseInt(e.target.value);
+                          setWinnerEntries(newEntries);
+                        }}
+                      >
+                        {[1, 2, 3, 4, 5].map(p => (
+                          <option key={p} value={p}>{p}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="flex-1">
+                      <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 ml-1">Student Name</label>
+                      <select
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition font-medium"
+                        value={entry.name}
+                        onChange={(e) => {
+                          const newEntries = [...winnerEntries];
+                          newEntries[index].name = e.target.value;
+                          setWinnerEntries(newEntries);
+                        }}
+                      >
+                        <option value="">Select Student</option>
+                        {registeredStudents.map((student, sIndex) => (
+                          <option key={sIndex} value={student.name}>
+                            {student.name} ({student.rollNo || 'No Roll'})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                ))}
+                <button
+                  type="submit"
+                  className="w-full py-4 bg-blue-600 text-white rounded-2xl font-black text-lg shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all mt-6"
+                >
+                  Save Results
+                </button>
+              </form>
+            )}
           </div>
         </div>
       )}

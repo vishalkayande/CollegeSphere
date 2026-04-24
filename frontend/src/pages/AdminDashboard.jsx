@@ -1,17 +1,30 @@
 import { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import { Building2, Users, Calendar, ShieldAlert, Trash2, CheckCircle, XCircle, ShieldCheck, LayoutGrid, Download } from 'lucide-react';
+import { Building2, Users, Calendar, ShieldAlert, Trash2, CheckCircle, XCircle, ShieldCheck, LayoutGrid, Download, Trophy, User, Plus } from 'lucide-react';
 
 const AdminDashboard = () => {
   const { user } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [data, setData] = useState([]);
   const [allEvents, setAllEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(null); // null = welcome state with big logo
+
+  useEffect(() => {
+    if (location.state?.reset) {
+      setActiveTab(null);
+      // Clear location state
+      navigate('/', { replace: true, state: {} });
+    }
+  }, [location, navigate]);
   const [orgFilter, setOrgFilter] = useState(null);
   const [studentFilter, setStudentFilter] = useState(null);
   const [eventFilter, setEventFilter] = useState(null);
+  const [showLeaderboardModal, setShowLeaderboardModal] = useState(false);
+  const [selectedEventForLeaderboard, setSelectedEventForLeaderboard] = useState(null);
   const API_URL = 'http://localhost:5002'; // Define API URL for consistency
 
   const isExpired = (event) => {
@@ -205,6 +218,18 @@ const AdminDashboard = () => {
                   <div className="flex justify-between items-start mb-4">
                     <h3 className="text-xl font-bold text-gray-900 line-clamp-1">{event.name}</h3>
                     <div className="flex items-center gap-1">
+                      {event.winners && event.winners.length > 0 && (
+                        <button 
+                          onClick={() => {
+                            setSelectedEventForLeaderboard(event);
+                            setShowLeaderboardModal(true);
+                          }}
+                          className="p-2 text-gray-400 hover:text-purple-600 transition"
+                          title="See Leaderboard"
+                        >
+                          <Trophy className="w-5 h-5" />
+                        </button>
+                      )}
                       <button 
                         onClick={() => handleDownloadCSV(event._id, event.name)}
                         className="p-2 text-gray-400 hover:text-blue-600 transition"
@@ -258,7 +283,7 @@ const AdminDashboard = () => {
               {data.map((college) => {
                 const orgBranches = [...new Set(college.organizers.map(o => o.organizerDetails?.department).filter(Boolean))];
                 const studentBranches = [...new Set(college.students.map(s => s.studentDetails?.branch).filter(Boolean))];
-                const eventStatuses = ['LIVE', 'EXPIRED'];
+                const eventStatuses = ['LIVE', 'COMPLETED'];
 
                 return (
                   <div key={college.college} className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden">
@@ -415,27 +440,41 @@ const AdminDashboard = () => {
                           {eventFilter && college.events
                             .filter(e => {
                               const expired = isExpired(e);
-                              return eventFilter === 'EXPIRED' ? expired : !expired;
+                              return eventFilter === 'COMPLETED' ? expired : !expired;
                             })
                             .map(event => (
                             <div key={event._id} className="bg-gray-50 p-4 rounded-2xl flex items-center justify-between border border-transparent hover:border-red-200 transition">
                                 <div>
                                   <p className="font-bold text-gray-800 text-sm">{event.name}</p>
                                   <div className="flex items-center gap-2 mt-1">
-                                    <p className={`text-[10px] font-bold uppercase tracking-wider ${isExpired(event) ? 'text-red-500' : 'text-green-500'}`}>
-                                      {isExpired(event) ? 'Expired' : 'Live'}
+                                    <p className={`text-[10px] font-bold uppercase tracking-wider ${isExpired(event) ? 'text-blue-600' : 'text-green-500'}`}>
+                                      {isExpired(event) ? 'Completed' : 'Live'}
                                     </p>
                                     <span className="text-gray-300 text-[10px]">•</span>
                                     <p className="text-gray-400 text-[10px] uppercase">{event.level}</p>
                                   </div>
                                 </div>
-                                <button 
-                                  onClick={() => handleDeleteEvent(event._id)}
-                                  className="p-1.5 text-red-500 hover:bg-red-100 rounded-lg transition"
-                                  title="Delete Event"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
+                                <div className="flex items-center gap-2">
+                                  {event.winners && event.winners.length > 0 && (
+                                    <button
+                                      onClick={() => {
+                                        setSelectedEventForLeaderboard(event);
+                                        setShowLeaderboardModal(true);
+                                      }}
+                                      className="p-1.5 text-purple-600 hover:bg-purple-50 rounded-lg transition"
+                                      title="See Leaderboard"
+                                    >
+                                      <Trophy className="w-4 h-4" />
+                                    </button>
+                                  )}
+                                  <button 
+                                    onClick={() => handleDeleteEvent(event._id)}
+                                    className="p-1.5 text-red-500 hover:bg-red-100 rounded-lg transition"
+                                    title="Delete Event"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
                               </div>
                             ))
                           }
@@ -451,6 +490,85 @@ const AdminDashboard = () => {
               <p className="text-gray-500">No data available yet.</p>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Leaderboard Modal */}
+      {showLeaderboardModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
+          <div className="bg-white rounded-[2.5rem] p-8 w-full max-w-lg shadow-2xl animate-in fade-in zoom-in duration-300">
+            <div className="flex justify-between items-center mb-8">
+              <div>
+                <h2 className="text-3xl font-black text-gray-900 tracking-tighter">Event Leaderboard</h2>
+                <p className="text-sm text-gray-500 font-medium">{selectedEventForLeaderboard?.name}</p>
+              </div>
+              <button 
+                onClick={() => setShowLeaderboardModal(false)} 
+                className="text-gray-400 hover:text-gray-600 transition p-2 hover:bg-gray-100 rounded-full"
+              >
+                <Plus className="w-6 h-6 rotate-45" />
+              </button>
+            </div>
+
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+              {[...(selectedEventForLeaderboard?.winners || [])].sort((a,b) => a.position - b.position).map((winner) => (
+                <div key={winner.position} className="group relative flex items-center gap-5 p-5 bg-white border border-gray-100 rounded-[2rem] hover:border-purple-200 hover:shadow-xl hover:shadow-purple-50 transition-all duration-300">
+                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-black text-2xl shadow-sm ${
+                    winner.position === 1 ? 'bg-gradient-to-br from-yellow-300 to-yellow-500 text-white shadow-yellow-100' :
+                    winner.position === 2 ? 'bg-gradient-to-br from-slate-200 to-slate-400 text-white shadow-slate-100' :
+                    winner.position === 3 ? 'bg-gradient-to-br from-orange-300 to-orange-500 text-white shadow-orange-100' :
+                    'bg-purple-100 text-purple-600'
+                  }`}>
+                    {winner.position === 1 ? '🥇' : winner.position === 2 ? '🥈' : winner.position === 3 ? '🥉' : winner.position}
+                  </div>
+                  
+                  <div className="flex-1">
+                    <div className="flex justify-between items-start mb-1">
+                      <h4 className="font-black text-xl text-gray-900 leading-tight group-hover:text-purple-600 transition">{winner.name}</h4>
+                      <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest ${
+                        winner.position === 1 ? 'bg-yellow-50 text-yellow-600 border border-yellow-100' :
+                        winner.position === 2 ? 'bg-slate-50 text-slate-500 border border-slate-100' :
+                        winner.position === 3 ? 'bg-orange-50 text-orange-600 border border-orange-100' :
+                        'bg-purple-50 text-purple-600 border border-purple-100'
+                      }`}>
+                        {winner.position === 1 ? 'Champion' : winner.position === 2 ? 'Runner Up' : winner.position === 3 ? '2nd Runner Up' : `Position ${winner.position}`}
+                      </span>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-y-2 gap-x-4 mt-2">
+                      <div className="flex items-center gap-1.5 text-[11px] font-bold text-gray-400 uppercase tracking-tight">
+                        <div className="w-5 h-5 rounded-md bg-gray-50 flex items-center justify-center">
+                          <User className="w-3 h-3 text-gray-400" />
+                        </div>
+                        Roll: <span className="text-gray-700">{winner.rollNo || 'N/A'}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-[11px] font-bold text-gray-400 uppercase tracking-tight">
+                        <div className="w-5 h-5 rounded-md bg-gray-50 flex items-center justify-center">
+                          <LayoutGrid className="w-3 h-3 text-gray-400" />
+                        </div>
+                        Class: <span className="text-gray-700">{winner.class || 'N/A'}</span>
+                      </div>
+                      {(selectedEventForLeaderboard?.level === 'institute' || selectedEventForLeaderboard?.level === 'club') && (
+                        <div className="col-span-2 flex items-center gap-1.5 text-[11px] font-bold text-gray-400 uppercase tracking-tight">
+                          <div className="w-5 h-5 rounded-md bg-gray-50 flex items-center justify-center">
+                            <Building2 className="w-3 h-3 text-gray-400" />
+                          </div>
+                          Branch: <span className="text-gray-700">{winner.branch || 'N/A'}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <button
+              onClick={() => setShowLeaderboardModal(false)}
+              className="w-full mt-8 py-4 bg-gray-900 text-white rounded-2xl font-black text-lg hover:bg-black transition-all shadow-lg shadow-gray-200"
+            >
+              Close Leaderboard
+            </button>
+          </div>
         </div>
       )}
     </div>

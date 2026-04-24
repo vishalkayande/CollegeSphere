@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import { LayoutGrid, Building2, Users, Search, MapPin, Calendar, Clock, ChevronRight, Info, CreditCard } from 'lucide-react';
+import { LayoutGrid, Building2, Users, Search, MapPin, Calendar, Clock, ChevronRight, Info, CreditCard, Trophy, User, Plus } from 'lucide-react';
 
 const StudentDashboard = () => {
   const { user, updateUser, logout } = useAuth();
@@ -12,6 +12,8 @@ const StudentDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showLeaderboardModal, setShowLeaderboardModal] = useState(false);
+  const [selectedEventForLeaderboard, setSelectedEventForLeaderboard] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
   const API_URL = 'http://localhost:5002';
@@ -229,26 +231,37 @@ const StudentDashboard = () => {
                 </div>
 
                 <button
-                  onClick={() => handleRegister(event._id)}
-                  disabled={!isEligible(event) || isRegistered(event) || isExpired(event) || event.isPaused || (event.registrationLimit > 0 && event.registrations.length >= event.registrationLimit)}
-                  className={`mt-auto w-full flex items-center justify-center gap-2 font-bold py-4 rounded-2xl transition-all duration-200 group/btn ${
-                    !isEligible(event) || isRegistered(event) || isExpired(event) || event.isPaused || (event.registrationLimit > 0 && event.registrations.length >= event.registrationLimit)
-                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed grayscale'
-                      : 'bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white'
+                  onClick={() => {
+                    if (event.winners && event.winners.length > 0) {
+                      setSelectedEventForLeaderboard(event);
+                      setShowLeaderboardModal(true);
+                    } else {
+                      handleRegister(event._id);
+                    }
+                  }}
+                  disabled={(!event.winners || event.winners.length === 0) && (!isEligible(event) || isRegistered(event) || isExpired(event) || event.isPaused || (event.registrationLimit > 0 && event.registrations.length >= event.registrationLimit))}
+                  className={`mt-auto w-full flex items-center justify-center gap-2 font-black py-4 rounded-2xl transition-all duration-300 group/btn ${
+                    (event.winners && event.winners.length > 0)
+                      ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-700 hover:to-indigo-700 shadow-lg shadow-purple-200 hover:scale-[1.02]'
+                      : (!isEligible(event) || isRegistered(event) || isExpired(event) || event.isPaused || (event.registrationLimit > 0 && event.registrations.length >= event.registrationLimit))
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed grayscale'
+                        : 'bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white'
                   }`}
                 >
-                  {isRegistered(event) 
-                    ? 'Registered ✓' 
-                    : (isExpired(event)
-                        ? 'Registrations Closed'
-                        : (event.isPaused
-                            ? 'Registration Paused'
-                            : (event.registrationLimit > 0 && event.registrations.length >= event.registrationLimit
-                                ? 'Registrations Full'
-                                : (!isEligible(event)
-                                    ? 'Only for ' + event.department
-                                    : 'Register Now'))))}
-                  <ChevronRight className="w-4 h-4 group-hover/btn:translate-x-1 transition" />
+                  {event.winners && event.winners.length > 0
+                    ? <><Trophy className="w-5 h-5 animate-bounce" /> LeaderBoard</>
+                    : isRegistered(event) 
+                      ? 'Registered ✓' 
+                      : (isExpired(event)
+                          ? 'Registrations Closed'
+                          : (event.isPaused
+                              ? 'Registration Paused'
+                              : (event.registrationLimit > 0 && event.registrations.length >= event.registrationLimit
+                                  ? 'Registrations Full'
+                                  : (!isEligible(event)
+                                      ? 'Only for ' + event.department
+                                      : 'Register Now'))))}
+                  <ChevronRight className={`w-4 h-4 group-hover/btn:translate-x-1 transition ${event.winners && event.winners.length > 0 ? 'text-white/70' : ''}`} />
                 </button>
               </div>
             </div>
@@ -365,6 +378,85 @@ const StudentDashboard = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Leaderboard Modal */}
+      {showLeaderboardModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
+          <div className="bg-white rounded-[2.5rem] p-8 w-full max-w-lg shadow-2xl animate-in fade-in zoom-in duration-300">
+            <div className="flex justify-between items-center mb-8">
+              <div>
+                <h2 className="text-3xl font-black text-gray-900 tracking-tighter">Event Leaderboard</h2>
+                <p className="text-sm text-gray-500 font-medium">{selectedEventForLeaderboard?.name}</p>
+              </div>
+              <button 
+                onClick={() => setShowLeaderboardModal(false)} 
+                className="text-gray-400 hover:text-gray-600 transition p-2 hover:bg-gray-100 rounded-full"
+              >
+                <Plus className="w-6 h-6 rotate-45" />
+              </button>
+            </div>
+
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+              {[...(selectedEventForLeaderboard?.winners || [])].sort((a,b) => a.position - b.position).map((winner) => (
+                <div key={winner.position} className="group relative flex items-center gap-5 p-5 bg-white border border-gray-100 rounded-[2rem] hover:border-purple-200 hover:shadow-xl hover:shadow-purple-50 transition-all duration-300">
+                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-black text-2xl shadow-sm ${
+                    winner.position === 1 ? 'bg-gradient-to-br from-yellow-300 to-yellow-500 text-white shadow-yellow-100' :
+                    winner.position === 2 ? 'bg-gradient-to-br from-slate-200 to-slate-400 text-white shadow-slate-100' :
+                    winner.position === 3 ? 'bg-gradient-to-br from-orange-300 to-orange-500 text-white shadow-orange-100' :
+                    'bg-purple-100 text-purple-600'
+                  }`}>
+                    {winner.position === 1 ? '🥇' : winner.position === 2 ? '🥈' : winner.position === 3 ? '🥉' : winner.position}
+                  </div>
+                  
+                  <div className="flex-1">
+                    <div className="flex justify-between items-start mb-1">
+                      <h4 className="font-black text-xl text-gray-900 leading-tight group-hover:text-purple-600 transition">{winner.name}</h4>
+                      <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest ${
+                        winner.position === 1 ? 'bg-yellow-50 text-yellow-600 border border-yellow-100' :
+                        winner.position === 2 ? 'bg-slate-50 text-slate-500 border border-slate-100' :
+                        winner.position === 3 ? 'bg-orange-50 text-orange-600 border border-orange-100' :
+                        'bg-purple-50 text-purple-600 border border-purple-100'
+                      }`}>
+                        {winner.position === 1 ? 'Champion' : winner.position === 2 ? 'Runner Up' : winner.position === 3 ? '2nd Runner Up' : `Position ${winner.position}`}
+                      </span>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-y-2 gap-x-4 mt-2">
+                      <div className="flex items-center gap-1.5 text-[11px] font-bold text-gray-400 uppercase tracking-tight">
+                        <div className="w-5 h-5 rounded-md bg-gray-50 flex items-center justify-center">
+                          <User className="w-3 h-3 text-gray-400" />
+                        </div>
+                        Roll: <span className="text-gray-700">{winner.rollNo || 'N/A'}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-[11px] font-bold text-gray-400 uppercase tracking-tight">
+                        <div className="w-5 h-5 rounded-md bg-gray-50 flex items-center justify-center">
+                          <LayoutGrid className="w-3 h-3 text-gray-400" />
+                        </div>
+                        Class: <span className="text-gray-700">{winner.class || 'N/A'}</span>
+                      </div>
+                      {(selectedEventForLeaderboard?.level === 'institute' || selectedEventForLeaderboard?.level === 'club') && (
+                        <div className="col-span-2 flex items-center gap-1.5 text-[11px] font-bold text-gray-400 uppercase tracking-tight">
+                          <div className="w-5 h-5 rounded-md bg-gray-50 flex items-center justify-center">
+                            <Building2 className="w-3 h-3 text-gray-400" />
+                          </div>
+                          Branch: <span className="text-gray-700">{winner.branch || 'N/A'}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <button
+              onClick={() => setShowLeaderboardModal(false)}
+              className="w-full mt-8 py-4 bg-gray-900 text-white rounded-2xl font-black text-lg hover:bg-black transition-all shadow-lg shadow-gray-200"
+            >
+              Close Leaderboard
+            </button>
           </div>
         </div>
       )}

@@ -14,7 +14,7 @@ const Navbar = () => {
   return (
     <nav className="bg-white shadow-sm border-b sticky top-0 z-50">
       <div className="container mx-auto px-4 h-20 flex items-center justify-between">
-        <Link to="/" className="flex items-center gap-3">
+        <Link to="/" state={{ reset: true }} className="flex items-center gap-3">
           <img src="/logo.png" alt="CollegeSphere Logo" className="h-14 w-auto drop-shadow-sm" />
           <span className="text-2xl font-black tracking-tighter">
             <span className="text-[#003B5C]">College</span><span className="text-[#00B5AD]">Sphere</span>
@@ -22,7 +22,7 @@ const Navbar = () => {
         </Link>
 
         <div className="hidden md:flex items-center gap-12">
-          {user?.role !== 'admin' && (
+          {(user?.role === 'student' || !user) && (
             <>
               <Link to="/" className="text-[#003B5C] hover:text-blue-600 text-lg font-black transition">Events</Link>
             </>
