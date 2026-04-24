@@ -105,10 +105,24 @@ const StudentDashboard = () => {
     { id: 'club', label: 'Club Level', icon: Users },
   ];
 
-  const filteredEvents = events.filter(event => 
-    event.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    event.organizer?.name?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const getEventPriority = (event) => {
+    const expired = isExpired(event);
+    const registered = isRegistered(event);
+    const hasWinners = event.winners && event.winners.length > 0;
+
+    if (!registered && !expired && !hasWinners) return 1; // Live & Not Registered
+    if (registered && !expired && !hasWinners) return 2;  // Registered & Live
+    if (hasWinners) return 3;                             // Completed (Leaderboard)
+    if (expired && !hasWinners) return 4;                // Registrations Closed
+    return 5;
+  };
+
+  const filteredEvents = events
+    .filter(event => 
+      event.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      event.organizer?.name?.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+    .sort((a, b) => getEventPriority(a) - getEventPriority(b));
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
