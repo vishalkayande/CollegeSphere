@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import axios from 'axios';
 import { Lock, ArrowLeft, CheckCircle, ShieldCheck, ShieldAlert, KeyRound } from 'lucide-react';
+import { API_URL } from '../apiConfig';
 
 const ResetPassword = () => {
   const location = useLocation();
@@ -13,7 +14,6 @@ const ResetPassword = () => {
   const [loading, setLoading] = useState(false);
   
   const navigate = useNavigate();
-  const API_URL = 'http://localhost:5002';
 
   useEffect(() => {
     if (!email) {

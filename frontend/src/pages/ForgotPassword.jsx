@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Mail, ArrowLeft, CheckCircle } from 'lucide-react';
+import { API_URL } from '../apiConfig';
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState('');
@@ -9,8 +10,6 @@ const ForgotPassword = () => {
   const [loading, setLoading] = useState(false);
   const [developmentOTP, setDevelopmentOTP] = useState(''); // For development mode
   const navigate = useNavigate();
-
-  const API_URL = 'http://localhost:5002';
 
   const handleSubmit = async (e) => {
     e.preventDefault();

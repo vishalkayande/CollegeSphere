@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { LayoutGrid, Building2, Users, Search, MapPin, Calendar, Clock, ChevronRight, Info, CreditCard, Trophy, User, Plus } from 'lucide-react';
+import { API_URL } from '../apiConfig';
 
 const StudentDashboard = () => {
   const { user, updateUser, logout } = useAuth();
@@ -16,7 +17,6 @@ const StudentDashboard = () => {
   const [selectedEventForLeaderboard, setSelectedEventForLeaderboard] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
-  const API_URL = 'http://localhost:5002';
 
   useEffect(() => {
     // Only show modal if studentDetails are completely missing or branch is not set

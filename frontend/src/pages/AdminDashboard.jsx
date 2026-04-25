@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { Building2, Users, Calendar, ShieldAlert, Trash2, CheckCircle, XCircle, ShieldCheck, LayoutGrid, Download, Trophy, User, Plus, History, Mail, Phone, CalendarDays, Clock } from 'lucide-react';
+import { API_URL } from '../apiConfig';
 
 const AdminDashboard = () => {
   const { user } = useAuth();
@@ -29,7 +30,6 @@ const AdminDashboard = () => {
   const [selectedEventForParticipants, setSelectedEventForParticipants] = useState(null);
   const [participants, setParticipants] = useState([]);
   const [loadingParticipants, setLoadingParticipants] = useState(false);
-  const API_URL = 'http://localhost:5002'; // Define API URL for consistency
 
   const handleViewParticipants = async (event) => {
     setSelectedEventForParticipants(event);

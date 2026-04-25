@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { Plus, Users, Download, Trash2, ExternalLink, Calendar as CalendarIcon, Clock, Tag, Pause, Play, Trophy, LayoutGrid } from 'lucide-react';
+import { API_URL } from '../apiConfig';
 
 const OrganizerDashboard = () => {
   const { user } = useAuth();
@@ -150,8 +151,6 @@ const OrganizerDashboard = () => {
       reader.readAsDataURL(file);
     }
   };
-
-  const API_URL = 'http://localhost:5002'; // Define API URL for consistency
 
   const fetchAllEvents = async () => {
     try {
