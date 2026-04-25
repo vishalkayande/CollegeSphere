@@ -38,11 +38,22 @@ CollegeSphere is a comprehensive academic event management platform designed to 
 - **Database**: MongoDB (Mongoose)
 - **Real-time**: Socket.io for instant updates
 - **Auth**: JSON Web Tokens (JWT) & Bcryptjs
+- **Containerization**: Docker & Docker Compose
 
 ---
 
 ## 🏁 Getting Started
 
+### 🐋 Method 1: Docker (Fastest)
+1.  **Install Docker Desktop**.
+2.  **Run**:
+    ```bash
+    docker-compose up --build
+    ```
+3.  **Access**: `http://localhost`
+4.  **Default Admin**: `admin@collegesphere.com` / `admin123`
+
+### 🛠️ Method 2: Manual Setup
 Follow these steps to set up the project locally.
 
 ### 1️⃣ Clone the Repository
@@ -97,9 +108,14 @@ npm run dev
 
 ## 🚢 Deployment Steps
 
-To make the application live on a platform like Vercel (Frontend) and Render/Railway (Backend):
+For a detailed walkthrough, see the [DEPLOYMENT_GUIDE.md](file:///d:/CollegeSphere/DEPLOYMENT_GUIDE.md).
 
-### Backend Deployment
+### Docker Deployment (Recommended)
+1.  **Clone** to EC2.
+2.  **Edit** `docker-compose.yml` (Set `VITE_API_URL` to EC2 IP).
+3.  **Run**: `sudo docker-compose up -d --build`.
+
+### Manual Deployment
 1. Connect your GitHub repo to the hosting platform.
 2. Set the build command to `npm install`.
 3. Set the start command to `node server.js`.
