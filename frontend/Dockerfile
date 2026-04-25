@@ -6,15 +6,11 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm install
+# Install dependencies (including devDependencies for build)
+RUN npm install --include=dev
 
 # Copy all source files
 COPY . .
-
-# Pass build arguments (injected during docker-compose build)
-ARG VITE_API_URL
-ENV VITE_API_URL=$VITE_API_URL
 
 # Build the production application
 RUN npm run build

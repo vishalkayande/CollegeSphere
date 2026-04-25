@@ -26,7 +26,7 @@ const io = new Server(server, {
 
 // Middleware
 app.use(cors({
-  origin: true, // Allow all origins in development
+  origin: '*', // Allow all origins for IP-based access
   credentials: true
 }));
 app.use(express.json({ limit: '10mb' }));
