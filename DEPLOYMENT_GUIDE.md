@@ -1,13 +1,51 @@
 # CollegeSphere Deployment Guide (AWS EC2 + Cloudflare)
 
-This guide provides step-by-step instructions to deploy the CollegeSphere project on an AWS EC2 instance using Nginx and Cloudflare Tunnels.
+This guide provides two methods for deployment: **Method 1 (Docker - Recommended)** and **Method 2 (Manual Setup)**.
 
 ---
 
-## 🏗️ Phase 1: AWS EC2 Setup
+## 🐋 Method 1: Docker Deployment (Recommended)
 
+This is the fastest and most reliable way to deploy.
+
+### **1. EC2 Server Preparation**
+Connect to your EC2 and install Docker:
+```bash
+sudo apt update
+sudo apt install docker.io docker-compose -y
+sudo systemctl start docker
+sudo systemctl enable docker
+```
+
+### **2. Deploying the Code**
+```bash
+git clone https://github.com/vishalkayande/CollegeSphere.git
+cd CollegeSphere
+```
+
+### **3. Configure & Launch**
+1.  **Edit the configuration**:
+    ```bash
+    nano docker-compose.yml
+    ```
+2.  **Change the Frontend API URL**:
+    Find the `frontend` section and change `VITE_API_URL` to your EC2 Public IP:
+    ```yaml
+    args:
+      - VITE_API_URL=http://YOUR_EC2_PUBLIC_IP:5002
+    ```
+3.  **Launch everything**:
+    ```bash
+    sudo docker-compose up -d --build
+    ```
+
+---
+
+## 🛠️ Method 2: Manual Setup
+
+### **1. AWS EC2 Setup**
 1.  **Launch Instance**:
-    *   Select **Ubuntu 22.04 LTS** (64-bit).
+    *   Select **Ubuntu 22.04 LTS**.
     *   Instance type: `t2.micro` (Free Tier eligible).
     *   **Security Group**: Allow **SSH (22)**, **HTTP (80)**, and **Custom TCP (5002)** for the backend.
 

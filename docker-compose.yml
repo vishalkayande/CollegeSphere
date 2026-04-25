@@ -1,0 +1,50 @@
+services:
+  # Database Service
+  mongodb:
+    image: mongo:latest
+    container_name: collegesphere_db
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+  # Backend Service
+  backend:
+    build: ./backend
+    container_name: collegesphere_api
+    restart: always
+    ports:
+      - "5002:5002"
+    environment:
+      - PORT=5002
+      - MONGODB_URI=mongodb://mongodb:27017/collegesphere
+      - JWT_SECRET=collegesphere_secret_12345
+      - NODE_ENV=production
+      - SMTP_HOST=smtp-relay.brevo.com
+      - SMTP_PORT=587
+      - SMTP_USER=a9351a001@smtp-brevo.com
+      - SMTP_PASS=f8sOcw4rBJPp07Ft
+      - FROM_NAME=CollegeSphere
+      - FROM_EMAIL=vishalskayande121@gmail.com
+    depends_on:
+      - mongodb
+
+  # Frontend Service
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # For localhost testing, use this. 
+        # When deploying to EC2, change this to http://YOUR_EC2_IP:5002
+        - VITE_API_URL=http://localhost:5002
+    container_name: collegesphere_web
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+# Persistent storage for MongoDB
+volumes:
+  mongo-data:

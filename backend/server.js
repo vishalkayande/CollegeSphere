@@ -4,12 +4,16 @@ const cors = require('cors');
 const http = require('http');
 const { Server } = require('socket.io');
 const connectDB = require('./config/db');
+const seedAdmin = require('./config/seed');
 
 // Load env vars
 dotenv.config();
 
 // Connect to database
-connectDB();
+connectDB().then(() => {
+  // Seed default admin if none exists
+  seedAdmin();
+});
 
 const app = express();
 const server = http.createServer(app);
