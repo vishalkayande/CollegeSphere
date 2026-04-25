@@ -44,26 +44,42 @@ CollegeSphere is a comprehensive academic event management platform designed to 
 
 ## 🏁 Getting Started
 
-### 🐋 Method 1: Docker (Fastest)
+### 🐋 Method 1: Docker (Fastest & Secure)
 1.  **Install Docker Desktop**.
-2.  **Run**:
+2.  **Create a `.env` file** in the root directory and add your secrets (see template below).
+3.  **Run**:
     ```bash
     docker-compose up --build
     ```
-3.  **Access**: `http://localhost`
-4.  **Default Admin**: `admin@collegesphere.com` / `admin123`
+4.  **Access**: `http://localhost`
 
-### 🛠️ Method 2: Manual Setup
+
+### � Environment Variables Template
+Create a `.env` file in the root directory:
+```env
+PORT=5002
+MONGODB_URI=mongodb://mongodb:27017/collegesphere
+JWT_SECRET=your_jwt_secret
+NODE_ENV=production
+SMTP_HOST=smtp-relay.brevo.com
+SMTP_PORT=587
+SMTP_USER=your_brevo_user
+SMTP_PASS=your_brevo_pass
+FROM_NAME=CollegeSphere
+FROM_EMAIL=your_email@gmail.com
+```
+
+### �🛠️ Method 2: Manual Setup
 Follow these steps to set up the project locally.
 
 ### 1️⃣ Clone the Repository
 ```bash
-git clone https://github.com/your-username/CollegeSphere.git
+git clone https://github.com/vishalkayande/CollegeSphere.git
 cd CollegeSphere
 ```
 
 ### 2️⃣ Backend Setup
-Open a terminal in the root directory:
+Open a terminal in the `backend` folder:
 ```bash
 cd backend
 npm install
@@ -86,7 +102,7 @@ FROM_EMAIL=your_verified_sender_email
 ```
 
 ### 3️⃣ Frontend Setup
-Open a new terminal in the root directory:
+Open a new terminal in the `frontend` folder:
 ```bash
 cd frontend
 npm install
@@ -108,29 +124,14 @@ npm run dev
 
 ## 🚢 Deployment Steps
 
-For a detailed walkthrough, see the [DEPLOYMENT_GUIDE.md](file:///d:/CollegeSphere/DEPLOYMENT_GUIDE.md).
+For a detailed walkthrough of deploying on AWS EC2 using Docker, see the [DEPLOYMENT_GUIDE.md](file:///d:/CollegeSphere/DEPLOYMENT_GUIDE.md).
 
-### Docker Deployment (Recommended)
-1.  **Clone** to EC2.
-2.  **Edit** `docker-compose.yml` (Set `VITE_API_URL` to EC2 IP).
+### Quick Docker Deployment (EC2)
+1.  **Clone** repo to EC2.
+2.  **Create `.env`** file in the root directory with production values.
 3.  **Run**: `sudo docker-compose up -d --build`.
 
-### Manual Deployment
-1. Connect your GitHub repo to the hosting platform.
-2. Set the build command to `npm install`.
-3. Set the start command to `node server.js`.
-4. **Important**: Add all `.env` variables in the platform's Environment Variables section.
-
-### Frontend Deployment
-1. Connect the repo and set the framework preset to **Vite**.
-2. Build command: `npm run build`.
-3. Output directory: `dist`.
-4. Set the environment variable `VITE_API_URL` to your deployed backend URL.
-
 ---
-
-## 🤝 Contributing
-Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## 📜 License
 This project is licensed under the ISC License.

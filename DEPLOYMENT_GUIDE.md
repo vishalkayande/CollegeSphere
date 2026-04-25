@@ -1,70 +1,34 @@
-# CollegeSphere Deployment Guide (AWS EC2 + Cloudflare)
+# CollegeSphere Deployment Guide (AWS EC2 + Docker)
 
-This guide provides two methods for deployment: **Method 1 (Docker - Recommended)** and **Method 2 (Manual Setup)**.
-
----
-
-## 🐋 Method 1: Docker Deployment (Recommended)
-
-This is the fastest and most reliable way to deploy.
-
-### **1. EC2 Server Preparation**
-Connect to your EC2 and install Docker:
-```bash
-sudo apt update
-sudo apt install docker.io docker-compose -y
-sudo systemctl start docker
-sudo systemctl enable docker
-```
-
-### **2. Deploying the Code**
-```bash
-git clone https://github.com/vishalkayande/CollegeSphere.git
-cd CollegeSphere
-```
-
-### **3. Configure & Launch**
-1.  **Edit the configuration**:
-    ```bash
-    nano docker-compose.yml
-    ```
-2.  **Change the Frontend API URL**:
-    Find the `frontend` section and change `VITE_API_URL` to your EC2 Public IP:
-    ```yaml
-    args:
-      - VITE_API_URL=http://YOUR_EC2_PUBLIC_IP:5002
-    ```
-3.  **Launch everything**:
-    ```bash
-    sudo docker-compose up -d --build
-    ```
+This guide provides a streamlined process for deploying CollegeSphere on an AWS EC2 instance using Docker containerization. This method is secure, scalable, and easy to maintain.
 
 ---
 
-## 🛠️ Method 2: Manual Setup
+## 🐋 Step 1: EC2 Server Preparation
 
-### **1. AWS EC2 Setup**
 1.  **Launch Instance**:
-    *   Select **Ubuntu 22.04 LTS**.
-    *   Instance type: `t2.micro` (Free Tier eligible).
-    *   **Security Group**: Allow **SSH (22)**, **HTTP (80)**, and **Custom TCP (5002)** for the backend.
+    *   **OS**: Ubuntu 22.04 LTS (Recommended).
+    *   **Instance Type**: `t2.micro` (Free Tier) or higher.
+    *   **Security Group**: 
+        *   Allow **SSH (22)** for access.
+        *   Allow **HTTP (80)** for the web interface.
+        *   Allow **Custom TCP (5002)** for backend API (if needed for direct testing, though Docker handles internal routing).
 
-2.  **Connect to EC2**:
+2.  **Install Docker & Docker Compose**:
+    Connect to your EC2 via SSH and run:
     ```bash
-    ssh -i "your-key.pem" ubuntu@your-ec2-ip
+    sudo apt update
+    sudo apt install docker.io docker-compose -y
+    sudo systemctl start docker
+    sudo systemctl enable docker
+    # Add your user to the docker group to run without sudo (optional)
+    sudo usermod -aG docker $USER
     ```
-
-3.  **Install Dependencies**:
-    ```bash
-    sudo apt update && sudo apt upgrade -y
-    curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-    sudo apt install -y nodejs nginx git
-    sudo npm install -g pm2
-    ```
+    *Note: If you add your user to the docker group, log out and back in for changes to take effect.*
 
 ---
 
-## 🚀 Phase 2: Code Deployment
+## 🚀 Step 2: Deploying the Application
 
 1.  **Clone the Repository**:
     ```bash
@@ -72,91 +36,53 @@ cd CollegeSphere
     cd CollegeSphere
     ```
 
-2.  **Setup Backend**:
+2.  **Setup Secrets (.env)**:
+    Create a `.env` file in the root directory. This file is ignored by git to keep your secrets safe.
     ```bash
-    cd backend
-    npm install
     nano .env
     ```
-    *Paste your `.env` content (MongoDB URL, Brevo Credentials, etc.).*
-    *Start the backend:*
-    ```bash
-    pm2 start server.js --name "college-api"
-    ```
-
-3.  **Setup Frontend**:
-    ```bash
-    cd ../frontend
-    npm install
-    nano .env
-    ```
-    *Add the following line (replace with your IP):*
+    Paste the following template and update with your actual production values:
     ```env
-    VITE_API_URL=http://YOUR_EC2_PUBLIC_IP:5002
+    PORT=5002
+    MONGODB_URI=mongodb://mongodb:27017/collegesphere
+    JWT_SECRET=your_production_secret_key
+    NODE_ENV=production
+    SMTP_HOST=smtp-relay.brevo.com
+    SMTP_PORT=587
+    SMTP_USER=your_brevo_user
+    SMTP_PASS=your_brevo_password
+    FROM_NAME=CollegeSphere
+    FROM_EMAIL=your_verified_email@example.com
     ```
-    *Build the production files:*
+
+3.  **Launch the Containers**:
     ```bash
-    npm run build
+    docker login
+    sudo docker-compose up -d --build
     ```
+    The `-d` flag runs the containers in the background (detached mode).
 
 ---
 
-## 🌐 Phase 3: Nginx Configuration (Direct IP Access)
+## 🌐 Step 3: Accessing the App
 
-1.  **Edit Nginx Config**:
-    ```bash
-    sudo nano /etc/nginx/sites-available/default
-    ```
+1.  **Direct IP Access**:
+    Open your browser and navigate to `http://YOUR_EC2_PUBLIC_IP`.
+    The frontend is configured to automatically detect the host and communicate with the backend on port 5002.
 
-2.  **Replace content with**:
-    ```nginx
-    server {
-        listen 80;
-        server_name _; # Responds to any IP
-
-        root /home/ubuntu/CollegeSphere/frontend/dist;
-        index index.html;
-
-        location / {
-            try_files $uri /index.html;
-        }
-
-        location /api {
-            proxy_pass http://localhost:5002;
-            proxy_http_version 1.1;
-            proxy_set_header Upgrade $http_upgrade;
-            proxy_set_header Connection 'upgrade';
-            proxy_set_header Host $host;
-            proxy_cache_bypass $http_upgrade;
-        }
-    }
-    ```
-
-3.  **Test and Restart**:
-    ```bash
-    sudo nginx -t
-    sudo systemctl restart nginx
-    ```
+2.  **Cloudflare Tunnel (Optional for Domain & SSL)**:
+    If you want to use a custom domain with HTTPS:
+    *   Go to **Cloudflare Zero Trust Dashboard** -> **Networks** -> **Tunnels**.
+    *   Create a new tunnel and follow the instructions to install the `cloudflared` connector on your EC2.
+    *   Map your domain (e.g., `college.yourdomain.com`) to `http://localhost:80`.
 
 ---
 
-## ☁️ Phase 4: Cloudflare Tunnel Setup
+## ✅ Step 4: Verification & Logs
 
-1.  Go to **Cloudflare Dashboard** -> **Zero Trust** -> **Networks** -> **Tunnels**.
-2.  Click **Create a Tunnel** (name it "CollegeSphere").
-3.  Choose **Connector** (Debian 64-bit) and copy the command provided. Run it on your EC2.
-4.  In **Public Hostname**:
-    *   Subdomain: `www` (or leave blank)
-    *   Domain: `yourdomain.com`
-    *   Service: `HTTP://localhost:80`
-5.  Click **Save**. Your site is now live on your domain!
+*   **Check running containers**: `sudo docker ps`
+*   **View logs**: `sudo docker-compose logs -f`
+*   **Stop application**: `sudo docker-compose down`
 
 ---
 
-## ✅ Verification
-*   **Direct IP**: Open `http://YOUR_EC2_PUBLIC_IP` in your browser.
-*   **Domain**: Open `http://yourdomain.com` in your browser.
-*   **Backend**: Check `http://YOUR_EC2_PUBLIC_IP:5002/api/health` (if route exists).
-
----
-*Generated on 2026-04-25 for CollegeSphere Project.*
