@@ -115,7 +115,7 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleDownloadCSV = async (eventId, eventName) => {
+  const handleDownloadCSV = async (eventId, eventName, isGroupEvent) => {
     try {
       const config = {
         headers: { Authorization: `Bearer ${user.token}` }
@@ -128,34 +128,71 @@ const AdminDashboard = () => {
         return;
       }
 
-      let csvContent = "Student Name,Email,Mobile No,Department,Year,Class,Roll No,Registration Date,Registration Time\n";
-      registrations.forEach(reg => {
-        const name = reg.student?.name || 'N/A';
-        const email = reg.email || reg.student?.email || 'N/A';
-        const mobile = reg.mobileNo || 'N/A';
-        const dept = reg.student?.studentDetails?.branch || 'N/A';
-        const year = reg.student?.studentDetails?.year || 'N/A';
-        const className = reg.student?.studentDetails?.class || 'N/A';
-        const rollNo = reg.student?.studentDetails?.rollNo || 'N/A';
+      let csvContent = '';
+      
+      if (isGroupEvent) {
+        // CSV for group events
+        csvContent = "Team Name,Team Leader,Team Leader Email,Team Leader Mobile,Team Leader Roll No,Team Members,Registration Date,Registration Time\n";
         
-        // Handle Registration Date and Time
-        const regDateObj = reg.registeredAt ? new Date(reg.registeredAt) : null;
-        const regDate = regDateObj ? regDateObj.toLocaleDateString() : 'N/A';
-        const regTime = regDateObj ? regDateObj.toLocaleTimeString() : 'N/A';
-        
-        const row = [
-          `"${name.replace(/"/g, '""')}"`,
-          `"${email.replace(/"/g, '""')}"`,
-          `"${mobile.replace(/"/g, '""')}"`,
-          `"${dept.replace(/"/g, '""')}"`,
-          `"${year.replace(/"/g, '""')}"`,
-          `"${className.replace(/"/g, '""')}"`,
-          `"${rollNo.replace(/"/g, '""')}"`,
-          `"${regDate}"`,
-          `"${regTime}"`
-        ].join(",");
-        csvContent += row + "\n";
-      });
+        registrations.forEach(reg => {
+          const teamName = reg.teamName || 'N/A';
+          const leaderName = reg.teamLeader?.name || 'N/A';
+          const leaderEmail = reg.teamLeader?.email || 'N/A';
+          const leaderMobile = reg.teamLeader?.studentDetails?.mobileNo || 'N/A';
+          const leaderRollNo = reg.teamLeader?.studentDetails?.rollNo || 'N/A';
+          
+          // Build team members string
+          const membersStr = (reg.teamMembers || [])
+            .map(m => `${m.name} (${m.rollNo || 'No Roll'})${m.isUnregistered ? ' [Unregistered]' : ''}`)
+            .join('; ');
+          
+          const regDateObj = reg.registeredAt ? new Date(reg.registeredAt) : null;
+          const regDate = regDateObj ? regDateObj.toLocaleDateString() : 'N/A';
+          const regTime = regDateObj ? regDateObj.toLocaleTimeString() : 'N/A';
+          
+          const row = [
+            `"${teamName.replace(/"/g, '""')}"`,
+            `"${leaderName.replace(/"/g, '""')}"`,
+            `"${leaderEmail.replace(/"/g, '""')}"`,
+            `"${leaderMobile.replace(/"/g, '""')}"`,
+            `"${leaderRollNo.replace(/"/g, '""')}"`,
+            `"${membersStr.replace(/"/g, '""')}"`,
+            `"${regDate}"`,
+            `"${regTime}"`
+          ].join(",");
+          csvContent += row + "\n";
+        });
+      } else {
+        // CSV for individual events (existing format)
+        csvContent = "Student Name,Email,Mobile No,Department,Year,Class,Roll No,Registration Date,Registration Time\n";
+        registrations.forEach(reg => {
+          const name = reg.student?.name || 'N/A';
+          const email = reg.email || reg.student?.email || 'N/A';
+          const mobile = reg.mobileNo || 'N/A';
+          const dept = reg.student?.studentDetails?.branch || 'N/A';
+          const year = reg.student?.studentDetails?.year || 'N/A';
+          const className = reg.student?.studentDetails?.class || 'N/A';
+          const rollNo = reg.student?.studentDetails?.rollNo || 'N/A';
+          
+          // Handle Registration Date and Time
+          const regDateObj = reg.registeredAt ? new Date(reg.registeredAt) : null;
+          const regDate = regDateObj ? regDateObj.toLocaleDateString() : 'N/A';
+          const regTime = regDateObj ? regDateObj.toLocaleTimeString() : 'N/A';
+          
+          const row = [
+            `"${name.replace(/"/g, '""')}"`,
+            `"${email.replace(/"/g, '""')}"`,
+            `"${mobile.replace(/"/g, '""')}"`,
+            `"${dept.replace(/"/g, '""')}"`,
+            `"${year.replace(/"/g, '""')}"`,
+            `"${className.replace(/"/g, '""')}"`,
+            `"${rollNo.replace(/"/g, '""')}"`,
+            `"${regDate}"`,
+            `"${regTime}"`
+          ].join(",");
+          csvContent += row + "\n";
+        });
+      }
 
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
@@ -232,8 +269,17 @@ const AdminDashboard = () => {
                     alt={event.name} 
                     className="w-full h-full object-cover"
                   />
-                  <div className="absolute top-4 right-4 bg-white/90 backdrop-blur px-3 py-1 rounded-full text-[10px] font-bold text-blue-600 uppercase">
-                    {event.level}
+                  <div className="absolute top-4 right-4 flex flex-col gap-1 items-end">
+                    <span className="bg-white/90 backdrop-blur px-3 py-1 rounded-full text-[10px] font-bold text-blue-600 uppercase">
+                      {event.level}
+                    </span>
+                    <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${
+                      event.isGroupEvent
+                        ? 'bg-purple-500/90 backdrop-blur text-white'
+                        : 'bg-green-500/90 backdrop-blur text-white'
+                    }`}>
+                      {event.isGroupEvent ? 'Team/Group' : 'Individual'}
+                    </span>
                   </div>
                 </div>
                 <div className="p-6 flex-1 flex flex-col">
@@ -253,7 +299,7 @@ const AdminDashboard = () => {
                         </button>
                       )}
                       <button 
-                          onClick={() => handleDownloadCSV(event._id, event.name)}
+                          onClick={() => handleDownloadCSV(event._id, event.name, event.isGroupEvent)}
                           className="p-2 text-gray-400 hover:text-blue-600 transition"
                           title="Download Registrations CSV"
                         >
@@ -525,12 +571,18 @@ const AdminDashboard = () => {
                             <div key={event._id} className="bg-gray-50 p-4 rounded-2xl flex items-center justify-between border border-transparent hover:border-red-200 transition">
                                 <div>
                                   <p className="font-bold text-gray-800 text-sm">{event.name}</p>
-                                  <div className="flex items-center gap-2 mt-1">
-                                    <p className={`text-[10px] font-bold uppercase tracking-wider ${isExpired(event) ? 'text-blue-600' : 'text-green-500'}`}>
+                                  <div className="flex flex-wrap gap-1 mt-1">
+                                    <p className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${isExpired(event) ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-500'}`}>
                                       {isExpired(event) ? 'Completed' : 'Live'}
                                     </p>
-                                    <span className="text-gray-300 text-[10px]">•</span>
-                                    <p className="text-gray-400 text-[10px] uppercase">{event.level}</p>
+                                    <p className="text-gray-400 text-[10px] uppercase px-2 py-0.5 bg-gray-100 rounded">{event.level}</p>
+                                    <p className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${
+                                      event.isGroupEvent
+                                        ? 'bg-purple-100 text-purple-600'
+                                        : 'bg-green-100 text-green-600'
+                                    }`}>
+                                      {event.isGroupEvent ? 'Team/Group' : 'Individual'}
+                                    </p>
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-2">
@@ -661,7 +713,7 @@ const AdminDashboard = () => {
       {/* Participants Modal */}
       {showParticipantsModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
-          <div className="bg-white rounded-[2.5rem] p-8 w-full max-w-2xl shadow-2xl animate-in fade-in zoom-in duration-300">
+          <div className="bg-white rounded-[2.5rem] p-8 w-full max-w-3xl shadow-2xl animate-in fade-in zoom-in duration-300">
             <div className="flex justify-between items-center mb-8">
               <div>
                 <h2 className="text-3xl font-black text-gray-900 tracking-tighter">Event Participants</h2>
@@ -682,28 +734,81 @@ const AdminDashboard = () => {
                   <p className="text-gray-500 mt-4 font-medium">Loading participants...</p>
                 </div>
               ) : participants.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left">
-                    <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider font-bold">
-                      <tr>
-                        <th className="px-4 py-3">Student Name</th>
-                        <th className="px-4 py-3">Roll No</th>
-                        <th className="px-4 py-3">Branch</th>
-                        <th className="px-4 py-3">Class</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-50">
-                      {participants.map((reg) => (
-                        <tr key={reg._id} className="hover:bg-gray-50 transition">
-                          <td className="px-4 py-3 font-bold text-gray-900">{reg.student?.name}</td>
-                          <td className="px-4 py-3 text-sm text-gray-600 font-medium">{reg.student?.studentDetails?.rollNo || 'N/A'}</td>
-                          <td className="px-4 py-3 text-sm text-gray-600 font-medium">{reg.student?.studentDetails?.branch || 'N/A'}</td>
-                          <td className="px-4 py-3 text-sm text-gray-600 font-medium">{reg.student?.studentDetails?.class || 'N/A'}</td>
+                selectedEventForParticipants?.isGroupEvent ? (
+                  // Team/Group Event Display
+                  <div className="space-y-4">
+                    {participants.map((reg) => (
+                      <div key={reg._id} className="bg-purple-50 border border-purple-100 rounded-2xl p-6">
+                        <div className="flex items-center justify-between mb-4">
+                          <div>
+                            <h3 className="text-xl font-black text-purple-800">Team: {reg.teamName}</h3>
+                            <p className="text-xs text-purple-500 mt-1">
+                              Registered on: {reg.registeredAt ? new Date(reg.registeredAt).toLocaleDateString() : 'N/A'}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xs font-bold text-purple-400 uppercase tracking-widest">Team Leader</p>
+                            <p className="font-bold text-purple-700">
+                              {typeof reg.teamLeader === 'object' ? reg.teamLeader.name : 'Team Leader'}
+                            </p>
+                            {typeof reg.teamLeader === 'object' && reg.teamLeader.studentDetails && (
+                              <p className="text-xs text-purple-500">
+                                ({reg.teamLeader.studentDetails.rollNo || 'No Roll'})
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="border-t border-purple-100 pt-4">
+                          <p className="text-xs font-bold text-purple-400 uppercase tracking-wider mb-3">Team Members:</p>
+                          <div className="grid grid-cols-2 gap-3">
+                            {reg.teamMembers?.map((member, idx) => (
+                              <div key={idx} className={`flex items-center gap-3 p-3 rounded-xl ${member.isUnregistered ? 'bg-red-50 border border-red-100' : 'bg-white border border-purple-100'}`}>
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-sm ${member.isUnregistered ? 'bg-red-100 text-red-600' : 'bg-purple-100 text-purple-600'}`}>
+                                  {idx + 1}
+                                </div>
+                                <div>
+                                  <p className={`font-bold ${member.isUnregistered ? 'text-red-600 line-through' : 'text-gray-800'}`}>
+                                    {member.name}
+                                  </p>
+                                  <p className="text-xs text-gray-500">
+                                    ({member.rollNo || 'No Roll'}) {member.branch || member.class || 'N/A'}
+                                  </p>
+                                  {member.isUnregistered && (
+                                    <p className="text-[10px] font-bold text-red-500 uppercase tracking-wider">Unregistered</p>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  // Individual Event Display (Original Table)
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                      <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider font-bold">
+                        <tr>
+                          <th className="px-4 py-3">Student Name</th>
+                          <th className="px-4 py-3">Roll No</th>
+                          <th className="px-4 py-3">Branch</th>
+                          <th className="px-4 py-3">Class</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {participants.map((reg) => (
+                          <tr key={reg._id} className="hover:bg-gray-50 transition">
+                            <td className="px-4 py-3 font-bold text-gray-900">{reg.student?.name}</td>
+                            <td className="px-4 py-3 text-sm text-gray-600 font-medium">{reg.student?.studentDetails?.rollNo || 'N/A'}</td>
+                            <td className="px-4 py-3 text-sm text-gray-600 font-medium">{reg.student?.studentDetails?.branch || 'N/A'}</td>
+                            <td className="px-4 py-3 text-sm text-gray-600 font-medium">{reg.student?.studentDetails?.class || 'N/A'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )
               ) : (
                 <div className="text-center py-12">
                   <p className="text-gray-500 font-medium">No participants registered for this event yet.</p>

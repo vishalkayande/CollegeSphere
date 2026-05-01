@@ -5,7 +5,7 @@ const User = require('../models/userModel');
 // @route   POST /api/events
 // @access  Private (Organizer)
 const createEvent = async (req, res) => {
-  const { name, level, department, clubName, category, description, url, upiId, photo, date, time, registrationLimit } = req.body;
+  const { name, level, department, clubName, category, description, url, upiId, photo, date, time, registrationLimit, isGroupEvent, minTeamSize, maxTeamSize } = req.body;
 
   if (!name || !level || !description || !date || !time) {
     return res.status(400).json({ message: 'Please add all required fields' });
@@ -13,6 +13,15 @@ const createEvent = async (req, res) => {
 
   if (level === 'club' && !clubName) {
     return res.status(400).json({ message: 'Please add club name for club level event' });
+  }
+
+  if (isGroupEvent) {
+    if (!minTeamSize || !maxTeamSize) {
+      return res.status(400).json({ message: 'Please set team size limits for group event' });
+    }
+    if (parseInt(minTeamSize) > parseInt(maxTeamSize)) {
+      return res.status(400).json({ message: 'Min team size cannot exceed max team size' });
+    }
   }
 
   const event = await Event.create({
@@ -30,6 +39,9 @@ const createEvent = async (req, res) => {
     photo,
     date,
     time,
+    isGroupEvent: isGroupEvent || false,
+    minTeamSize: isGroupEvent ? parseInt(minTeamSize) : undefined,
+    maxTeamSize: isGroupEvent ? parseInt(maxTeamSize) : undefined,
   });
 
   if (event) {
@@ -49,7 +61,12 @@ const getEvents = async (req, res) => {
   if (level) query.level = level;
   if (college) query.college = college;
 
-  const events = await Event.find(query).populate('organizer', 'name email organizerDetails');
+  const events = await Event.find(query)
+    .populate('organizer', 'name email organizerDetails')
+    .populate('registrations.student', 'name studentDetails email')
+    .populate('registrations.teamLeader', 'name studentDetails email')
+    .populate('registrations.teamMembers.student', 'name studentDetails email');
+  
   res.json(events);
 };
 
@@ -57,7 +74,7 @@ const getEvents = async (req, res) => {
 // @route   POST /api/events/:id/enroll
 // @access  Private (Student)
 const enrollEvent = async (req, res) => {
-  const { mobileNo, email } = req.body;
+  const { mobileNo, email, teamName, teamLeader, teamMembers } = req.body;
   const event = await Event.findById(req.params.id);
 
   if (!event) {
@@ -80,23 +97,80 @@ const enrollEvent = async (req, res) => {
     return res.status(400).json({ message: 'Event registration limit reached' });
   }
 
-  // Check if already registered
-  const alreadyRegistered = event.registrations.find(
-    (reg) => reg.student.toString() === req.user._id.toString()
-  );
+  if (event.isGroupEvent) {
+    // Group event validation
+    if (!teamName || !teamLeader || !teamMembers || teamMembers.length === 0) {
+      return res.status(400).json({ message: 'Please provide team name and members' });
+    }
 
-  if (alreadyRegistered) {
-    return res.status(400).json({ message: 'Already registered' });
+    if (teamMembers.length < event.minTeamSize || teamMembers.length > event.maxTeamSize) {
+      return res.status(400).json({ message: `Team size must be between ${event.minTeamSize} and ${event.maxTeamSize}` });
+    }
+
+    // Check if any team member is already registered
+    const allMemberIds = [teamLeader, ...teamMembers.map(m => m.student)];
+    for (const memberId of allMemberIds) {
+      const alreadyRegistered = event.registrations.some(reg => {
+        if (reg.teamMembers) {
+          return reg.teamLeader.toString() === memberId || 
+                 reg.teamMembers.some(tm => tm.student && tm.student.toString() === memberId && !tm.isUnregistered);
+        }
+        return reg.student && reg.student.toString() === memberId;
+      });
+
+      if (alreadyRegistered) {
+        return res.status(400).json({ message: 'One or more team members are already registered' });
+      }
+    }
+
+    event.registrations.push({
+      teamName,
+      teamLeader,
+      teamMembers,
+      registeredAt: Date.now(),
+    });
+  } else {
+    // Individual event validation
+    const alreadyRegistered = event.registrations.find(
+      (reg) => reg.student && reg.student.toString() === req.user._id.toString()
+    );
+
+    if (alreadyRegistered) {
+      return res.status(400).json({ message: 'Already registered' });
+    }
+
+    event.registrations.push({
+      student: req.user._id,
+      mobileNo,
+      email: email || req.user.email,
+    });
   }
-
-  event.registrations.push({
-    student: req.user._id,
-    mobileNo,
-    email: email || req.user.email,
-  });
 
   await event.save();
   res.status(201).json({ message: 'Successfully registered' });
+};
+
+// @desc    Get classmates for team selection
+// @route   GET /api/users/classmates
+// @access  Private (Student)
+const getClassmates = async (req, res) => {
+  try {
+    if (!req.user.studentDetails || !req.user.studentDetails.branch || !req.user.studentDetails.class) {
+      return res.status(400).json({ message: 'Please complete your profile first' });
+    }
+
+    const classmates = await User.find({
+      role: 'student',
+      collegeName: req.user.collegeName,
+      'studentDetails.branch': req.user.studentDetails.branch,
+      'studentDetails.class': req.user.studentDetails.class,
+      _id: { $ne: req.user._id }
+    }).select('name studentDetails email');
+
+    res.json(classmates);
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to fetch classmates' });
+  }
 };
 
 // @desc    Unenroll from an event
@@ -115,16 +189,44 @@ const unenrollEvent = async (req, res) => {
     return res.status(400).json({ message: 'Cannot unregister from expired event' });
   }
 
-  // Check if registered
-  const registrationIndex = event.registrations.findIndex(
-    (reg) => reg.student.toString() === req.user._id.toString()
-  );
+  if (event.isGroupEvent) {
+    // Find team registration where user is part of
+    let found = false;
+    for (let reg of event.registrations) {
+      if (reg.teamLeader && reg.teamLeader.toString() === req.user._id.toString()) {
+        // If user is team leader, remove entire team
+        const index = event.registrations.indexOf(reg);
+        event.registrations.splice(index, 1);
+        found = true;
+        break;
+      } else if (reg.teamMembers) {
+        // If user is team member, mark as unregistered
+        const memberIndex = reg.teamMembers.findIndex(
+          m => m.student && m.student.toString() === req.user._id.toString()
+        );
+        if (memberIndex !== -1) {
+          reg.teamMembers[memberIndex].isUnregistered = true;
+          found = true;
+          break;
+        }
+      }
+    }
 
-  if (registrationIndex === -1) {
-    return res.status(400).json({ message: 'Not registered for this event' });
+    if (!found) {
+      return res.status(400).json({ message: 'Not registered for this event' });
+    }
+  } else {
+    // Individual event
+    const registrationIndex = event.registrations.findIndex(
+      (reg) => reg.student && reg.student.toString() === req.user._id.toString()
+    );
+
+    if (registrationIndex === -1) {
+      return res.status(400).json({ message: 'Not registered for this event' });
+    }
+
+    event.registrations.splice(registrationIndex, 1);
   }
-
-  event.registrations.splice(registrationIndex, 1);
 
   await event.save();
   res.json({ message: 'Successfully unregistered' });
@@ -134,7 +236,10 @@ const unenrollEvent = async (req, res) => {
 // @route   GET /api/events/:id/registrations
 // @access  Private (Organizer/Admin)
 const getRegistrations = async (req, res) => {
-  const event = await Event.findById(req.params.id).populate('registrations.student', 'name studentDetails');
+  const event = await Event.findById(req.params.id)
+    .populate('registrations.student', 'name studentDetails email')
+    .populate('registrations.teamLeader', 'name studentDetails email')
+    .populate('registrations.teamMembers.student', 'name studentDetails email');
 
   if (!event) {
     return res.status(404).json({ message: 'Event not found' });
@@ -219,4 +324,5 @@ module.exports = {
   togglePauseEvent,
   updateWinners,
   unenrollEvent,
+  getClassmates,
 };

@@ -15,6 +15,13 @@ const StudentDashboard = () => {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showLeaderboardModal, setShowLeaderboardModal] = useState(false);
   const [selectedEventForLeaderboard, setSelectedEventForLeaderboard] = useState(null);
+  const [showTeamModal, setShowTeamModal] = useState(false);
+  const [selectedEventForTeam, setSelectedEventForTeam] = useState(null);
+  const [classmates, setClassmates] = useState([]);
+  const [teamFormData, setTeamFormData] = useState({
+    teamName: '',
+    teamMembers: [],
+  });
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
 
@@ -46,22 +53,149 @@ const StudentDashboard = () => {
   }, [activeTab, user]);
 
   const handleRegister = async (eventId) => {
+    const event = events.find(e => e._id === eventId);
+    if (event?.isGroupEvent) {
+      // Open team registration modal
+      try {
+        const config = {
+          headers: { Authorization: `Bearer ${user.token}` }
+        };
+        const res = await axios.get(`${API_URL}/api/users/classmates`, config);
+        setClassmates(res.data);
+        
+        // Initialize team members array with max size
+        const initialMembers = Array(event.maxTeamSize).fill(null);
+        // Add current user as first member (team leader by default)
+        initialMembers[0] = {
+          student: user._id,
+          name: user.name,
+          rollNo: user.studentDetails?.rollNo || '',
+          class: user.studentDetails?.class || '',
+          branch: user.studentDetails?.branch || '',
+          email: user.email,
+          mobileNo: user.studentDetails?.mobileNo || '',
+          role: 'leader'
+        };
+        
+        setTeamFormData({
+          teamName: '',
+          teamMembers: initialMembers
+        });
+        
+        setSelectedEventForTeam(event);
+        setShowTeamModal(true);
+      } catch (err) {
+        console.error('Error fetching classmates:', err);
+        alert('Failed to load classmates');
+      }
+    } else {
+      // Individual event registration
+      try {
+        const config = {
+          headers: { Authorization: `Bearer ${user.token}` }
+        };
+        const registrationData = {
+          mobileNo: user.studentDetails?.mobileNo || '',
+          email: user.email
+        };
+        
+        await axios.post(`${API_URL}/api/events/${eventId}/enroll`, registrationData, config);
+        alert('Successfully registered for the event!');
+        fetchEvents(); // Refresh events to show "Registered" status
+      } catch (err) {
+        console.error('Registration Error:', err);
+        alert(err.response?.data?.message || 'Failed to register for event');
+      }
+    }
+  };
+
+  const handleTeamRegister = async () => {
+    if (!teamFormData.teamName.trim()) {
+      alert('Please enter team name');
+      return;
+    }
+
+    // Filter out null members and check min team size
+    const validMembers = teamFormData.teamMembers.filter(m => m !== null);
+    if (validMembers.length < (selectedEventForTeam?.minTeamSize || 2)) {
+      alert(`Team must have at least ${selectedEventForTeam?.minTeamSize || 2} members`);
+      return;
+    }
+
+    // Check if there's a team leader
+    const hasLeader = validMembers.some(m => m.role === 'leader');
+    if (!hasLeader) {
+      alert('Please select a team leader');
+      return;
+    }
+
+    setSubmitting(true);
     try {
       const config = {
         headers: { Authorization: `Bearer ${user.token}` }
       };
+      
+      const teamLeader = validMembers.find(m => m.role === 'leader');
+      const teamMembers = validMembers.map(m => ({
+        student: m.student,
+        name: m.name,
+        rollNo: m.rollNo,
+        class: m.class,
+        branch: m.branch,
+        email: m.email,
+        mobileNo: m.mobileNo
+      }));
+      
       const registrationData = {
-        mobileNo: user.studentDetails?.mobileNo || '',
-        email: user.email
+        teamName: teamFormData.teamName,
+        teamLeader: teamLeader.student,
+        teamMembers
       };
       
-      await axios.post(`${API_URL}/api/events/${eventId}/enroll`, registrationData, config);
-      alert('Successfully registered for the event!');
-      fetchEvents(); // Refresh events to show "Registered" status
+      await axios.post(`${API_URL}/api/events/${selectedEventForTeam._id}/enroll`, registrationData, config);
+      alert('Team registered successfully!');
+      setShowTeamModal(false);
+      fetchEvents();
     } catch (err) {
-      console.error('Registration Error:', err);
-      alert(err.response?.data?.message || 'Failed to register for event');
+      console.error('Team Registration Error:', err);
+      alert(err.response?.data?.message || 'Failed to register team');
+    } finally {
+      setSubmitting(false);
     }
+  };
+
+  const handleSelectMember = (slotIndex, student) => {
+    const newMembers = [...teamFormData.teamMembers];
+    if (student) {
+      newMembers[slotIndex] = {
+        student: student._id,
+        name: student.name,
+        rollNo: student.studentDetails?.rollNo || '',
+        class: student.studentDetails?.class || '',
+        branch: student.studentDetails?.branch || '',
+        email: student.email,
+        mobileNo: student.studentDetails?.mobileNo || '',
+        role: slotIndex === 0 ? 'leader' : 'member' // First member is leader by default
+      };
+    } else {
+      newMembers[slotIndex] = null;
+    }
+    setTeamFormData({ ...teamFormData, teamMembers: newMembers });
+  };
+
+  const handleSetRole = (slotIndex, role) => {
+    const newMembers = [...teamFormData.teamMembers];
+    if (newMembers[slotIndex]) {
+      newMembers[slotIndex].role = role;
+    }
+    setTeamFormData({ ...teamFormData, teamMembers: newMembers });
+  };
+
+  // Get all selected student IDs
+  const getSelectedStudentIds = () => {
+    return teamFormData.teamMembers
+      .filter(m => m !== null)
+      .map(m => m.student);
   };
 
   const handleUnenroll = async (eventId) => {
@@ -84,7 +218,38 @@ const StudentDashboard = () => {
   };
 
   const isRegistered = (event) => {
+    if (event.isGroupEvent) {
+      return event.registrations?.some(reg => {
+        if (reg.teamLeader) {
+          // Check if user is team leader
+          if (reg.teamLeader === user._id || reg.teamLeader?._id === user._id) {
+            return true;
+          }
+          // Check if user is team member (and not unregistered)
+          return reg.teamMembers?.some(tm => 
+            (tm.student === user._id || tm.student?._id === user._id) && !tm.isUnregistered
+          );
+        }
+        return false;
+      });
+    }
+    // Individual event
     return event.registrations?.some(reg => reg.student === user._id || reg.student?._id === user._id);
+  };
+
+  const getTeamRegistration = (event) => {
+    if (!event.isGroupEvent) return null;
+    return event.registrations?.find(reg => {
+      if (reg.teamLeader) {
+        if (reg.teamLeader === user._id || reg.teamLeader?._id === user._id) {
+          return true;
+        }
+        return reg.teamMembers?.some(tm => 
+          tm.student === user._id || tm.student?._id === user._id
+        );
+      }
+      return false;
+    });
   };
 
   const isExpired = (event) => {
@@ -190,8 +355,17 @@ const StudentDashboard = () => {
                   alt={event.name}
                   className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
                 />
-                <div className="absolute top-4 right-4 bg-white/90 backdrop-blur px-3 py-1 rounded-full text-xs font-bold text-blue-600 uppercase tracking-wider">
-                  {event.category || 'Event'}
+                <div className="absolute top-4 right-4 flex flex-col gap-2 items-end">
+                  <span className="bg-white/90 backdrop-blur px-3 py-1 rounded-full text-xs font-bold text-blue-600 uppercase tracking-wider">
+                    {event.category || 'Event'}
+                  </span>
+                  <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
+                    event.isGroupEvent
+                      ? 'bg-purple-500/90 backdrop-blur text-white'
+                      : 'bg-green-500/90 backdrop-blur text-white'
+                  }`}>
+                    {event.isGroupEvent ? 'Team/Group' : 'Individual'}
+                  </span>
                 </div>
                 {event.level === 'club' && event.clubName && (
                   <div className="absolute top-4 left-4 bg-purple-100/90 backdrop-blur px-3 py-1 rounded-full text-xs font-bold text-purple-600 uppercase tracking-wider">
@@ -252,6 +426,48 @@ const StudentDashboard = () => {
                     <p className="text-[10px] text-blue-400 mt-1 italic">Please complete payment to confirm your slot.</p>
                   </div>
                 )}
+
+                {/* Team Information - For group events */}
+                {event.isGroupEvent && isRegistered(event) && (() => {
+                  const teamReg = getTeamRegistration(event);
+                  if (!teamReg) return null;
+                  
+                  let leaderName = 'Team Leader';
+                  if (teamReg.teamLeader) {
+                    if (typeof teamReg.teamLeader === 'object') {
+                      leaderName = teamReg.teamLeader.name;
+                    } else if (teamReg.teamLeader.name) {
+                      leaderName = teamReg.teamLeader.name;
+                    }
+                  }
+                  
+                  const isTeamLeader = (typeof teamReg.teamLeader === 'object' && teamReg.teamLeader._id === user._id) || 
+                                       (typeof teamReg.teamLeader === 'string' && teamReg.teamLeader === user._id);
+                  
+                  return (
+                    <div className="mb-6 bg-purple-50/50 p-4 rounded-xl border border-purple-100 animate-in fade-in slide-in-from-top-2 duration-300">
+                      <div className="flex items-center gap-2 text-[10px] font-black text-purple-400 uppercase tracking-widest mb-2">
+                        <Users className="w-3 h-3" /> Team Details
+                      </div>
+                      <p className="text-sm font-bold text-purple-700 mb-2">Team: {teamReg.teamName}</p>
+                      <p className="text-xs text-purple-500 mb-3">
+                        Registered by: {isTeamLeader ? 'You (Team Leader)' : leaderName}
+                      </p>
+                      <div className="space-y-2">
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Team Members:</p>
+                        {teamReg.teamMembers?.map((member, idx) => (
+                          <div key={idx} className={`flex items-center gap-2 text-sm ${member.isUnregistered ? 'text-red-500' : 'text-gray-700'}`}>
+                            <User className="w-3 h-3" />
+                            <span className={member.isUnregistered ? 'line-through' : ''}>
+                              ({member.rollNo || 'No Roll'}) {member.name}
+                            </span>
+                            {member.isUnregistered && <span className="text-xs font-bold text-red-500">(unregistered)</span>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Organizer Contact Details */}
                 <div className="mb-6 pt-4 border-t border-gray-50">
@@ -390,8 +606,31 @@ const StudentDashboard = () => {
               <div>
                 <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">Class & Roll No</label>
                 <div className="grid grid-cols-2 gap-4">
-                  <input name="class" required placeholder="Class" className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition" />
-                  <input name="rollNo" required placeholder="Roll No" className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition" />
+                  <select 
+                    name="class" 
+                    required 
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition"
+                  >
+                    <option value="">Select Class</option>
+                    <option value="FY A">FY A</option>
+                    <option value="FY B">FY B</option>
+                    <option value="SY A">SY A</option>
+                    <option value="SY B">SY B</option>
+                    <option value="TY A">TY A</option>
+                    <option value="TY B">TY B</option>
+                    <option value="B.TECH A">B.TECH A</option>
+                    <option value="B.TECH B">B.TECH B</option>
+                    <option value="MBA Ist">MBA Ist</option>
+                    <option value="MBA 2nd">MBA 2nd</option>
+                  </select>
+                  <input 
+                    name="rollNo" 
+                    required 
+                    placeholder="Roll No (e.g., CS3135)" 
+                    pattern="^[A-Z]{2}\d{4}$"
+                    title="Roll number must be 2 alphabets followed by 4 digits (e.g., CS3135)"
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition"
+                  />
                 </div>
               </div>
               <div>
@@ -420,6 +659,127 @@ const StudentDashboard = () => {
                   Not you? Logout and switch account
                 </button>
               </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Team Registration Modal */}
+      {showTeamModal && selectedEventForTeam && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
+          <div className="bg-white rounded-[2.5rem] p-8 w-full max-w-2xl shadow-2xl animate-in fade-in zoom-in duration-300 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-8">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Register Your Team</h2>
+                <p className="text-sm text-gray-500 font-medium">{selectedEventForTeam.name}</p>
+                <p className="text-xs text-gray-400 mt-1">
+                  Team size: {selectedEventForTeam.minTeamSize} - {selectedEventForTeam.maxTeamSize} members
+                </p>
+              </div>
+              <button 
+                onClick={() => setShowTeamModal(false)} 
+                className="text-gray-400 hover:text-gray-600 transition"
+              >
+                <Plus className="w-6 h-6 rotate-45" />
+              </button>
+            </div>
+
+            <form onSubmit={(e) => { e.preventDefault(); handleTeamRegister(); }} className="space-y-6">
+              {/* Team Name */}
+              <div>
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Team Name</label>
+                <input
+                  required
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition"
+                  value={teamFormData.teamName}
+                  onChange={(e) => setTeamFormData({ ...teamFormData, teamName: e.target.value })}
+                  placeholder="Enter team name"
+                />
+              </div>
+
+              {/* Team Members */}
+              <div>
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Team Members</label>
+                <div className="space-y-4">
+                  {teamFormData.teamMembers.map((member, index) => (
+                    <div key={index} className="flex flex-col gap-3 p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-bold text-gray-600">Member {index + 1}</span>
+                        {member && (
+                          <select
+                            className="px-3 py-1 bg-white border border-gray-200 rounded-lg text-xs font-medium"
+                            value={member.role}
+                            onChange={(e) => handleSetRole(index, e.target.value)}
+                          >
+                            <option value="leader">Team Leader</option>
+                            <option value="member">Member</option>
+                          </select>
+                        )}
+                      </div>
+                      
+                      <div className="flex gap-3">
+                        <select
+                          className="flex-1 px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition font-medium"
+                          value={member ? member.student : ''}
+                          onChange={(e) => {
+                            if (e.target.value === '') {
+                              handleSelectMember(index, null);
+                            } else {
+                              const studentId = e.target.value;
+                              if (studentId === user._id) {
+                                // Current user
+                                handleSelectMember(index, {
+                                  _id: user._id,
+                                  name: user.name,
+                                  studentDetails: user.studentDetails,
+                                  email: user.email
+                                });
+                              } else {
+                                // Classmate
+                                const classmate = classmates.find(c => c._id === studentId);
+                                if (classmate) {
+                                  handleSelectMember(index, classmate);
+                                }
+                              }
+                            }
+                          }}
+                        >
+                          <option value="">Select student</option>
+                          {/* Current user option */}
+                          <option 
+                            value={user._id} 
+                            disabled={getSelectedStudentIds().includes(user._id) && (!member || member.student !== user._id)}
+                          >
+                            ({user.studentDetails?.rollNo || 'Your Roll'}) {user.name} (You)
+                          </option>
+                          {/* Classmates */}
+                          {classmates.map(classmate => (
+                            <option 
+                              key={classmate._id} 
+                              value={classmate._id}
+                              disabled={getSelectedStudentIds().includes(classmate._id) && (!member || member.student !== classmate._id)}
+                            >
+                              ({classmate.studentDetails?.rollNo || 'No Roll'}) {classmate.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={submitting}
+                className={`w-full py-4 rounded-2xl font-black text-lg shadow-lg transition-all mt-4 ${
+                  submitting 
+                    ? 'bg-gray-400 cursor-not-allowed' 
+                    : 'bg-purple-600 hover:bg-purple-700 text-white shadow-purple-200'
+                }`}
+              >
+                {submitting ? 'Registering Team...' : 'Register Team'}
+              </button>
             </form>
           </div>
         </div>

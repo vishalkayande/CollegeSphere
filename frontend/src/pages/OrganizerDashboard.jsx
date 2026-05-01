@@ -33,6 +33,9 @@ const OrganizerDashboard = () => {
     department: 'ALL',
     registrationLimit: 0,
     clubName: '',
+    isGroupEvent: false,
+    minTeamSize: 2,
+    maxTeamSize: 4,
   });
   const [imagePreview, setImagePreview] = useState(null);
   const [showWinnersModal, setShowWinnersModal] = useState(false);
@@ -191,6 +194,9 @@ const OrganizerDashboard = () => {
         department: 'ALL',
         registrationLimit: 0,
         clubName: '',
+        isGroupEvent: false,
+        minTeamSize: 2,
+        maxTeamSize: 4,
       });
       setImagePreview(null);
     } catch (err) {
@@ -227,7 +233,7 @@ const OrganizerDashboard = () => {
     }
   };
 
-  const handleDownloadCSV = async (eventId, eventName) => {
+  const handleDownloadCSV = async (eventId, eventName, isGroupEvent) => {
     try {
       const config = {
         headers: { Authorization: `Bearer ${user.token}` }
@@ -240,38 +246,71 @@ const OrganizerDashboard = () => {
         return;
       }
 
-      // Create CSV header
-      let csvContent = "Student Name,Email,Mobile No,Department,Year,Class,Roll No,Registration Date,Registration Time\n";
+      let csvContent = '';
+      
+      if (isGroupEvent) {
+        // CSV for group events
+        csvContent = "Team Name,Team Leader,Team Leader Email,Team Leader Mobile,Team Leader Roll No,Team Members,Registration Date,Registration Time\n";
+        
+        registrations.forEach(reg => {
+          const teamName = reg.teamName || 'N/A';
+          const leaderName = reg.teamLeader?.name || 'N/A';
+          const leaderEmail = reg.teamLeader?.email || 'N/A';
+          const leaderMobile = reg.teamLeader?.studentDetails?.mobileNo || 'N/A';
+          const leaderRollNo = reg.teamLeader?.studentDetails?.rollNo || 'N/A';
+          
+          // Build team members string
+          const membersStr = (reg.teamMembers || [])
+            .map(m => `${m.name} (${m.rollNo || 'No Roll'})${m.isUnregistered ? ' [Unregistered]' : ''}`)
+            .join('; ');
+          
+          const regDateObj = reg.registeredAt ? new Date(reg.registeredAt) : null;
+          const regDate = regDateObj ? regDateObj.toLocaleDateString() : 'N/A';
+          const regTime = regDateObj ? regDateObj.toLocaleTimeString() : 'N/A';
+          
+          const row = [
+            `"${teamName.replace(/"/g, '""')}"`,
+            `"${leaderName.replace(/"/g, '""')}"`,
+            `"${leaderEmail.replace(/"/g, '""')}"`,
+            `"${leaderMobile.replace(/"/g, '""')}"`,
+            `"${leaderRollNo.replace(/"/g, '""')}"`,
+            `"${membersStr.replace(/"/g, '""')}"`,
+            `"${regDate}"`,
+            `"${regTime}"`
+          ].join(",");
+          csvContent += row + "\n";
+        });
+      } else {
+        // CSV for individual events (existing format)
+        csvContent = "Student Name,Email,Mobile No,Department,Year,Class,Roll No,Registration Date,Registration Time\n";
 
-      // Add student data
-      registrations.forEach(reg => {
-        const name = reg.student?.name || 'N/A';
-        const email = reg.email || reg.student?.email || 'N/A';
-        const mobile = reg.mobileNo || 'N/A';
-        const dept = reg.student?.studentDetails?.branch || 'N/A';
-        const year = reg.student?.studentDetails?.year || 'N/A';
-        const className = reg.student?.studentDetails?.class || 'N/A';
-        const rollNo = reg.student?.studentDetails?.rollNo || 'N/A';
-        
-        // Handle Registration Date and Time
-        const regDateObj = reg.registeredAt ? new Date(reg.registeredAt) : null;
-        const regDate = regDateObj ? regDateObj.toLocaleDateString() : 'N/A';
-        const regTime = regDateObj ? regDateObj.toLocaleTimeString() : 'N/A';
-        
-        // Escape quotes and commas
-        const row = [
-          `"${name.replace(/"/g, '""')}"`,
-          `"${email.replace(/"/g, '""')}"`,
-          `"${mobile.replace(/"/g, '""')}"`,
-          `"${dept.replace(/"/g, '""')}"`,
-          `"${year.replace(/"/g, '""')}"`,
-          `"${className.replace(/"/g, '""')}"`,
-          `"${rollNo.replace(/"/g, '""')}"`,
-          `"${regDate}"`,
-          `"${regTime}"`
-        ].join(",");
-        csvContent += row + "\n";
-      });
+        registrations.forEach(reg => {
+          const name = reg.student?.name || 'N/A';
+          const email = reg.email || reg.student?.email || 'N/A';
+          const mobile = reg.mobileNo || 'N/A';
+          const dept = reg.student?.studentDetails?.branch || 'N/A';
+          const year = reg.student?.studentDetails?.year || 'N/A';
+          const className = reg.student?.studentDetails?.class || 'N/A';
+          const rollNo = reg.student?.studentDetails?.rollNo || 'N/A';
+          
+          const regDateObj = reg.registeredAt ? new Date(reg.registeredAt) : null;
+          const regDate = regDateObj ? regDateObj.toLocaleDateString() : 'N/A';
+          const regTime = regDateObj ? regDateObj.toLocaleTimeString() : 'N/A';
+          
+          const row = [
+            `"${name.replace(/"/g, '""')}"`,
+            `"${email.replace(/"/g, '""')}"`,
+            `"${mobile.replace(/"/g, '""')}"`,
+            `"${dept.replace(/"/g, '""')}"`,
+            `"${year.replace(/"/g, '""')}"`,
+            `"${className.replace(/"/g, '""')}"`,
+            `"${rollNo.replace(/"/g, '""')}"`,
+            `"${regDate}"`,
+            `"${regTime}"`
+          ].join(",");
+          csvContent += row + "\n";
+        });
+      }
 
       // Download file
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -429,10 +468,19 @@ const OrganizerDashboard = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="bg-blue-50 text-blue-600 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide">
-                          {event.level}
-                        </span>
-                        <div className="mt-1 ml-1 flex flex-col gap-0.5">
+                        <div className="flex flex-wrap gap-2 mb-2">
+                          <span className="bg-blue-50 text-blue-600 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide">
+                            {event.level}
+                          </span>
+                          <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${
+                            event.isGroupEvent
+                              ? 'bg-purple-50 text-purple-600'
+                              : 'bg-green-50 text-green-600'
+                          }`}>
+                            {event.isGroupEvent ? 'Team/Group' : 'Individual'}
+                          </span>
+                        </div>
+                        <div className="ml-1 flex flex-col gap-0.5">
                           {event.level === 'department' && (
                             <div className="text-[10px] font-black text-blue-400 tracking-tighter uppercase">
                               {event.department}
@@ -501,7 +549,7 @@ const OrganizerDashboard = () => {
                                 </button>
                               )}
                               <button 
-                                onClick={() => handleDownloadCSV(event._id, event.name)}
+                                onClick={() => handleDownloadCSV(event._id, event.name, event.isGroupEvent)}
                                 className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition" 
                                 title="Download Registrations CSV"
                               >
@@ -614,6 +662,60 @@ const OrganizerDashboard = () => {
                   <option value="Other">Other</option>
                 </select>
               </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Event Type</label>
+                <div className="flex gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, isGroupEvent: false })}
+                    className={`flex-1 py-3 rounded-xl font-bold transition ${
+                      !formData.isGroupEvent
+                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-200'
+                        : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    Individual
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, isGroupEvent: true })}
+                    className={`flex-1 py-3 rounded-xl font-bold transition ${
+                      formData.isGroupEvent
+                        ? 'bg-purple-600 text-white shadow-lg shadow-purple-200'
+                        : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    Team/Group
+                  </button>
+                </div>
+              </div>
+
+              {formData.isGroupEvent && (
+                <>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Min Team Size</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max={formData.maxTeamSize}
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition"
+                      value={formData.minTeamSize}
+                      onChange={(e) => setFormData({ ...formData, minTeamSize: parseInt(e.target.value) || 2 })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Max Team Size</label>
+                    <input
+                      type="number"
+                      min={formData.minTeamSize}
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition"
+                      value={formData.maxTeamSize}
+                      onChange={(e) => setFormData({ ...formData, maxTeamSize: parseInt(e.target.value) || 4 })}
+                    />
+                  </div>
+                </>
+              )}
 
               <div>
                 <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Registration Limit (0 for no limit)</label>

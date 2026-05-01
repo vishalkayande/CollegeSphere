@@ -42,7 +42,7 @@ const eventSchema = mongoose.Schema(
     },
     registrationLimit: {
       type: Number,
-      default: 0, // 0 means no limit
+      default: 0, // 0 means no limit (for individual events) or team limit (for group events)
     },
     isPaused: {
       type: Boolean,
@@ -57,6 +57,20 @@ const eventSchema = mongoose.Schema(
       type: String,
       required: true,
     },
+    isGroupEvent: {
+      type: Boolean,
+      default: false,
+    },
+    minTeamSize: {
+      type: Number,
+      default: 2,
+      min: 1,
+    },
+    maxTeamSize: {
+      type: Number,
+      default: 4,
+      min: 1,
+    },
     registrations: [
       {
         student: {
@@ -65,6 +79,29 @@ const eventSchema = mongoose.Schema(
         },
         mobileNo: String,
         email: String,
+        teamName: String,
+        teamLeader: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'User',
+        },
+        teamMembers: [
+          {
+            student: {
+              type: mongoose.Schema.Types.ObjectId,
+              ref: 'User',
+            },
+            name: String,
+            rollNo: String,
+            class: String,
+            branch: String,
+            email: String,
+            mobileNo: String,
+            isUnregistered: {
+              type: Boolean,
+              default: false,
+            },
+          }
+        ],
         registeredAt: {
           type: Date,
           default: Date.now,
@@ -81,6 +118,19 @@ const eventSchema = mongoose.Schema(
         rollNo: String,
         class: String,
         branch: String,
+        isTeamWinner: {
+          type: Boolean,
+          default: false,
+        },
+        teamName: String,
+        teamMembers: [
+          {
+            name: String,
+            rollNo: String,
+            class: String,
+            branch: String,
+          }
+        ],
         position: {
           type: Number,
           min: 1,

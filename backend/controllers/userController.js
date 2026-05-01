@@ -222,6 +222,10 @@ const loginUser = async (req, res) => {
   // Check for user email
   const user = await User.findOne({ email: email.toLowerCase() });
 
+  if (!user) {
+    return res.status(401).json({ message: 'No user found kindly Signup First!' });
+  }
+
   if (user && (await user.matchPassword(password))) {
     if (user.role === 'organizer' && !user.isApproved) {
       return res.status(401).json({ message: 'Organizer account pending approval' });
@@ -249,9 +253,9 @@ const getMe = async (req, res) => {
   res.status(200).json(req.user);
 };
 
-// @desc    Update student profile
+// @desc    Update user profile
 // @route   PUT /api/users/profile
-// @access  Private (Student)
+// @access  Private
 const updateProfile = async (req, res) => {
   try {
     console.log('Update Profile Request:', req.body);
@@ -264,13 +268,21 @@ const updateProfile = async (req, res) => {
         user.collegeName = 'Unknown College';
       }
 
-      user.studentDetails = {
-        class: req.body.class || (user.studentDetails && user.studentDetails.class),
-        rollNo: req.body.rollNo || (user.studentDetails && user.studentDetails.rollNo),
-        branch: req.body.branch || (user.studentDetails && user.studentDetails.branch),
-        year: req.body.year || (user.studentDetails && user.studentDetails.year),
-        mobileNo: req.body.mobileNo || (user.studentDetails && user.studentDetails.mobileNo),
-      };
+      if (user.role === 'student') {
+        user.studentDetails = {
+          class: req.body.class || (user.studentDetails && user.studentDetails.class),
+          rollNo: req.body.rollNo || (user.studentDetails && user.studentDetails.rollNo),
+          branch: req.body.branch || (user.studentDetails && user.studentDetails.branch),
+          year: req.body.year || (user.studentDetails && user.studentDetails.year),
+          mobileNo: req.body.mobileNo || (user.studentDetails && user.studentDetails.mobileNo),
+        };
+      } else if (user.role === 'organizer') {
+        user.organizerDetails = {
+          department: req.body.department || (user.organizerDetails && user.organizerDetails.department),
+          mobileNo: req.body.mobileNo || (user.organizerDetails && user.organizerDetails.mobileNo),
+          contactEmail: req.body.contactEmail || (user.organizerDetails && user.organizerDetails.contactEmail),
+        };
+      }
 
       const updatedUser = await user.save();
       console.log('User Profile Updated Successfully');
@@ -282,6 +294,7 @@ const updateProfile = async (req, res) => {
         role: updatedUser.role,
         collegeName: updatedUser.collegeName,
         studentDetails: updatedUser.studentDetails,
+        organizerDetails: updatedUser.organizerDetails,
       });
     } else {
       res.status(404).json({ message: 'User not found' });

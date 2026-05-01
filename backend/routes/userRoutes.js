@@ -8,6 +8,7 @@ const {
   forgotPassword,
   resetPassword,
 } = require('../controllers/userController');
+const { getClassmates } = require('../controllers/eventController');
 const { protect } = require('../middleware/authMiddleware');
 
 router.post('/signup', registerUser);
@@ -16,5 +17,6 @@ router.post('/forgotpassword', forgotPassword);
 router.put('/resetpassword', resetPassword);
 router.get('/me', protect, getMe);
 router.put('/profile', protect, updateProfile);
+router.get('/classmates', protect, getClassmates);
 
 module.exports = router;
